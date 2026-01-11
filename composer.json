@@ -1,0 +1,130 @@
+{
+    "name": "pekral/google-console",
+    "description": "",
+    "license": "MIT",
+    "type": "project",
+    "authors": [
+        {
+            "name": "Your Name",
+            "email": "your.email@example.com",
+            "homepage": "https://github.com/pekral",
+            "role": "Maintainer"
+        }
+    ],
+    "homepage": "https://github.com/pekral/google-console",
+    "support": {
+        "issues": "https://github.com/pekral/google-console/issues",
+        "source": "https://github.com/pekral/google-console"
+    },
+    "require": {
+        "php": "^8.4"
+    },
+    "require-dev": {
+        "ergebnis/composer-normalize": "^2.48.2",
+        "laravel/pint": "^1.27.0",
+        "nunomaduro/termwind": "^2.3.3",
+        "pekral/cursor-rules": "dev-master",
+        "pekral/phpcs-rules": "dev-master",
+        "pekral/rector-rules": "dev-master",
+        "pestphp/pest": "^4.3.1",
+        "pestphp/pest-plugin-type-coverage": "^4.0.3",
+        "phpstan/extension-installer": "^1.4.3",
+        "phpstan/phpstan": "^2.1.33",
+        "phpstan/phpstan-deprecation-rules": "^2.0.3",
+        "phpstan/phpstan-mockery": "^2.0",
+        "phpstan/phpstan-phpunit": "^2.0.11",
+        "roave/security-advisories": "dev-latest",
+        "squizlabs/php_codesniffer": ">=4.0.1",
+        "symfony/console": "^7.4.3"
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "autoload": {
+        "psr-4": {
+            "Pekral\\GoogleConsole\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Pekral\\GoogleConsoleTest\\": "tests/"
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true,
+            "ergebnis/composer-normalize": true,
+            "pestphp/pest-plugin": true,
+            "phpstan/extension-installer": false
+        },
+        "bump-after-update": true,
+        "sort-packages": true
+    },
+    "scripts": {
+        "analyse": [
+            "echo \"Running analyse...\"",
+            "find src/ -name \"*.php\" 2>/dev/null | head -1 | grep -q . && vendor/bin/phpstan analyse --memory-limit=2G || echo \"No PHP files to analyse\""
+        ],
+        "check": [
+            "echo \"🚀 Running full quality check...\"",
+            "@composer-normalize-check",
+            "@phpcs-check",
+            "@pint-check",
+            "@rector-check",
+            "@analyse",
+            "@security-audit",
+            "@test:coverage"
+        ],
+        "composer-normalize-check": [
+            "echo \"📝 Checking Composer normalize...\"",
+            "composer normalize --dry-run"
+        ],
+        "composer-normalize-fix": [
+            "echo \"📝 Running Composer normalize fix...\"",
+            "composer normalize || true"
+        ],
+        "coverage": [
+            "echo \"📊 Running code coverage analysis...\"",
+            "@test:coverage"
+        ],
+        "fix": [
+            "echo \"🔧 Running all fixes...\"",
+            "@composer-normalize-fix",
+            "@rector-fix",
+            "@pint-fix",
+            "@phpcs-fix",
+            "echo \"✅ All fixes completed!\""
+        ],
+        "phpcs-check": [
+            "echo \"Running phpcs-check...\"",
+            "find src/ tests/ -name \"*.php\" 2>/dev/null | head -1 | grep -q . && vendor/bin/phpcs --standard=ruleset.xml src/ tests/ || echo \"No PHP files to check\""
+        ],
+        "phpcs-fix": [
+            "echo \"Running phpcs-fix...\"",
+            "find src/ tests/ -name \"*.php\" 2>/dev/null | head -1 | grep -q . && vendor/bin/phpcbf --standard=ruleset.xml src/ tests/ || true"
+        ],
+        "pint-check": [
+            "echo \"Running pint-check...\"",
+            "find src/ tests/ -name \"*.php\" 2>/dev/null | head -1 | grep -q . && vendor/bin/pint src/ tests/ --test || echo \"No PHP files to check\""
+        ],
+        "pint-fix": [
+            "echo \"Running pint-fix...\"",
+            "find src/ tests/ -name \"*.php\" 2>/dev/null | head -1 | grep -q . && vendor/bin/pint src/ tests/ || true"
+        ],
+        "rector-check": [
+            "echo \"Running rector-check...\"",
+            "find src/ tests/ -name \"*.php\" 2>/dev/null | head -1 | grep -q . && vendor/bin/rector process --dry-run --no-progress-bar || echo \"No PHP files to check\""
+        ],
+        "rector-fix": [
+            "echo \"Running rector-fix...\"",
+            "find src/ tests/ -name \"*.php\" 2>/dev/null | head -1 | grep -q . && vendor/bin/rector process --no-progress-bar || true"
+        ],
+        "security-audit": [
+            "echo \"🔒 Running Composer security audit...\"",
+            "composer audit --format=summary"
+        ],
+        "test:coverage": [
+            "echo \"Running test:coverage...\"",
+            "find tests/ -name \"*.php\" 2>/dev/null | head -1 | grep -q . && php -dpcov.enabled=1 -dpcov.directory=. -dxdebug.mode=off vendor/bin/pest --coverage --min=100 || echo \"No tests to run\""
+        ]
+    }
+}

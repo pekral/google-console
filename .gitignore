@@ -1,0 +1,9 @@
+/vendor/
+.phpunit.result.cache
+.idea/
+.cursor/
+/coverage-html/
+coverage.xml
+/build/
+.DS_Store
+SPEC.md
