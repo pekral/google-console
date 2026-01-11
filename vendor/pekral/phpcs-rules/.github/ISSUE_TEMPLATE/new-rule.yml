@@ -1,0 +1,12 @@
+name: "New PHPCS Rule Proposal"
+description: "Suggest a new custom rule for PHPCS."
+labels: [enhancement, rule]
+body:
+  - type: textarea
+    id: notes
+    attributes:
+      label: "Additional notes"
+      description: "Anything else the reviewer should know (e.g. links to similar rules, inspiration, ...)."
+      placeholder: "Links, inspiration, etc."
+    validations:
+      required: false 

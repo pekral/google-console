@@ -1,0 +1,84 @@
+{
+  "name": "pekral/phpcs-rules",
+  "description": "Custom ruleset for PHP_CodeSniffer (PHPCS) with additional rules and configuration, based on Slevomat Coding Standard. Helps to enforce consistent code style and best practices in PHP projects.",
+  "type": "library",
+  "keywords": [
+    "phpcs",
+    "php-codesniffer",
+    "coding-standard",
+    "code-style",
+    "code-quality",
+    "custom-ruleset",
+    "slevomat",
+    "php",
+    "sniffer",
+    "static-analysis",
+    "best-practices",
+    "lint",
+    "ci",
+    "psr12",
+    "ruleset",
+    "composer-package",
+    "open-source"
+  ],
+  "homepage": "https://github.com/pekral/phpcs-rules",
+  "support": {
+    "issues": "https://github.com/pekral/phpcs-rules/issues",
+    "source": "https://github.com/pekral/phpcs-rules",
+    "docs": "https://github.com/pekral/phpcs-rules#readme"
+  },
+  "funding": [
+    { "type": "github", "url": "https://github.com/sponsors/pekral" }
+  ],
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Petr Král",
+      "email": "kral.petr.88@gmail.com",
+      "role": "lead",
+      "homepage": "https://github.com/pekral"
+    }
+  ],
+  "scripts": {
+    "build": "composer fix && composer rector && composer check && composer check-unused-sniffs && composer phpstan && composer test && git gone",
+    "phpstan": "vendor/bin/phpstan analyse src/ --level=max --memory-limit=1G",
+    "rector": "rector process src/ tests/ --config=vendor/pekral/rector-rules/rector.php --dry-run",
+    "check": "vendor/bin/phpcs --standard=ruleset.xml Examples/ src/ tests/",
+    "check-unused-sniffs": "php build.php build:check-unused-sniffs",
+    "fix": "rector process src/ tests/ --config=vendor/pekral/rector-rules/rector.php && vendor/bin/phpcbf --standard=ruleset.xml Examples/ src/ tests/",
+    "test": "vendor/bin/phpunit",
+    "test:coverage": "vendor/bin/phpunit --coverage-html coverage-report"
+  },
+  "require": {
+    "php": "^8.4",
+    "slevomat/coding-standard": "^8.25.1"
+  },
+  "require-dev": {
+    "roave/security-advisories": "dev-latest",
+    "symfony/console": "^7.4.1 || ^8.0.0",
+    "illuminate/collections": "^12.42.0",
+    "phpunit/phpunit": "^12.5.3",
+    "mockery/mockery": "^1.6.12",
+    "pekral/cursor-rules": "^0.1.4",
+    "pekral/phpstan-rules": "^0.4.4.1",
+    "pekral/rector-rules": "^0.4.5"
+  },
+  "autoload": {
+    "psr-4": {
+      "Pekral\\PhpcsRulesBuild\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Pekral\\PhpcsRulesBuild\\Tests\\": "tests/"
+    }
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "config": {
+    "allow-plugins": {
+      "dealerdirect/phpcodesniffer-composer-installer": true,
+      "phpstan/extension-installer": true
+    }
+  }
+}

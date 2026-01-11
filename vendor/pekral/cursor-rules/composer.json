@@ -1,0 +1,106 @@
+{
+  "name": "pekral/cursor-rules",
+  "description": "Cursor editor rules for PHP/Laravel projects",
+  "type": "library",
+  "license": "MIT",
+  "require": {
+    "php": "^8.4"
+  },
+  "require-dev": {
+    "pekral/phpstan-rules": "^0.4.4.1",
+    "pekral/rector-rules": "^0.4.5",
+    "pekral/phpcs-rules": "^0.4.4",
+    "laravel/pint": "^1.25.1",
+    "pestphp/pest": "^3.8.4",
+    "pestphp/pest-plugin": "^3.0"
+  },
+  "bin": [
+    "bin/cursor-rules"
+  ],
+  "autoload": {
+    "psr-4": {
+      "Pekral\\CursorRules\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Tests\\": "tests/"
+    }
+  },
+  "scripts": {
+    "analyse": [
+      "echo \"🔍 Running PHPStan static analysis...\"",
+      "vendor/bin/phpstan analyse --memory-limit=2G"
+    ],
+    "check": [
+      "echo \"🚀 Running full quality check...\"",
+      "@phpcs-check",
+      "@pint-check",
+      "@rector-check",
+      "@analyse",
+      "@security-audit",
+      "@test:coverage"
+    ],
+    "coverage": [
+      "echo \"📊 Running code coverage analysis...\"",
+      "@test:coverage"
+    ],
+    "fix": [
+      "echo \"🔧 Running all fixes...\"",
+      "@rector-fix",
+      "@pint-fix",
+      "@phpcs-fix",
+      "echo \"✅ All fixes completed!\""
+    ],
+    "phpcs-check": [
+      "echo \"✅ Running PHP CodeSniffer check...\"",
+      "vendor/bin/phpcs --standard=ruleset.xml src/ tests/"
+    ],
+    "phpcs-fix": [
+      "echo \"🔧 Running PHP CodeSniffer fix...\"",
+      "vendor/bin/phpcbf --standard=ruleset.xml src/ tests/ || true"
+    ],
+    "pint-check": [
+      "echo \"🎨 Running Laravel Pint check...\"",
+      "vendor/bin/pint src/ tests/ --test"
+    ],
+    "pint-fix": [
+      "echo \"🎨 Running Laravel Pint fixes...\"",
+      "vendor/bin/pint src/ tests/"
+    ],
+    "rector-check": [
+      "echo \"🔄 Running Rector check (dry-run)...\"",
+      "vendor/bin/rector process --dry-run"
+    ],
+    "rector-fix": [
+      "echo \"🔄 Running Rector fixes...\"",
+      "vendor/bin/rector process"
+    ],
+    "security-audit": [
+      "echo \"🔒 Running Composer security audit...\"",
+      "composer audit --format=summary"
+    ],
+    "test:coverage": [
+      "echo \"📊 Running coverage tests with PCOV...\"",
+      "php -dpcov.enabled=1 -dpcov.directory=src -dpcov.exclude=tests -dxdebug.mode=off vendor/bin/pest --coverage tests --min=100"
+    ]
+  },
+  "extra": {
+    "cursor-rules": {
+      "source": "vendor/pekral/cursor-rules/.cursor/rules",
+      "target": ".cursor/rules"
+    }
+  },
+  "archive": {
+    "exclude": [
+      "/tests"
+    ]
+  },
+  "config": {
+    "allow-plugins": {
+      "phpstan/extension-installer": true,
+      "dealerdirect/phpcodesniffer-composer-installer": true,
+      "pestphp/pest-plugin": true
+    }
+  }
+}

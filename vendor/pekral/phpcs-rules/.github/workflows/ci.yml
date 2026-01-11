@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php-version: ['8.4', '8.5']
+        include:
+          - php-version: '8.4'
+            job-name: 'PHP 8.4'
+          - php-version: '8.5'
+            job-name: 'PHP 8.5'
+    name: ${{ matrix.job-name }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress --no-suggest
+
+      - name: PHP tests
+        run: composer test
+
+      - name: PHPCS Validation
+        run: composer check
+
+      - name: PHPStan
+        run: composer phpstan
+
+      - name: Rector (PHP Legacy)
+        run: composer rector
+
+      - name: Check unused sniffs
+        run: composer check-unused-sniffs
+
+      - name: PHP Compatibility Check
+        run: composer phpcompatibility
