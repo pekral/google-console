@@ -1,0 +1,16 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Export ignore - these files/folders will not be included in composer install
+/.github export-ignore
+/bin export-ignore
+/docs export-ignore
+/tests export-ignore
+.gitattributes export-ignore
+.gitignore export-ignore
+CHANGELOG.md export-ignore
+phpstan.neon export-ignore
+phpunit.xml export-ignore
+pint.json export-ignore
+rector.php export-ignore
+ruleset.xml export-ignore

@@ -1,0 +1,23 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+require __DIR__ . '/../vendor/autoload.php';
+
+use Pekral\GoogleConsole\Command\GetSiteCommand;
+use Pekral\GoogleConsole\Command\InspectUrlCommand;
+use Pekral\GoogleConsole\Command\ListSitesCommand;
+use Pekral\GoogleConsole\Command\RequestIndexingCommand;
+use Pekral\GoogleConsole\Command\SearchAnalyticsCommand;
+use Symfony\Component\Console\Application;
+
+$application = new Application('Pekral Google Console', '1.0.0');
+
+$application->add(new ListSitesCommand());
+$application->add(new GetSiteCommand());
+$application->add(new SearchAnalyticsCommand());
+$application->add(new InspectUrlCommand());
+$application->add(new RequestIndexingCommand());
+
+$application->run();

@@ -1,0 +1,91 @@
+<?php
+
+declare(strict_types = 1);
+
+namespace Pekral\GoogleConsole\Command;
+
+use Pekral\GoogleConsole\Command\Output\ConsoleOutput;
+use Pekral\GoogleConsole\DTO\UrlInspectionResult;
+use Symfony\Component\Console\Attribute\AsCommand;
+use Symfony\Component\Console\Input\InputArgument;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Output\OutputInterface;
+
+/**
+ * Inspects a URL to check its indexing status and mobile usability in Google Search.
+ */
+#[AsCommand(name: 'pekral:google-url-inspect', description: 'Inspects a URL to check its indexing status and mobile usability')]
+final class InspectUrlCommand extends BaseGoogleConsoleCommand
+{
+
+    protected function configure(): void
+    {
+        parent::configure();
+
+        $this->addArgument('site-url', InputArgument::REQUIRED, 'The site URL that owns the inspected page (e.g., https://example.com/)');
+        $this->addArgument('inspection-url', InputArgument::REQUIRED, 'The full URL to inspect (e.g., https://example.com/page)');
+    }
+
+    protected function execute(InputInterface $input, OutputInterface $output): int
+    {
+        $siteUrl = $input->getArgument('site-url');
+        assert(is_string($siteUrl));
+
+        $inspectionUrl = $input->getArgument('inspection-url');
+        assert(is_string($inspectionUrl));
+
+        $result = $this->getGoogleConsole($input)->inspectUrl($siteUrl, $inspectionUrl);
+
+        if ($this->isJsonOutput($input)) {
+            $this->outputJson($output, ['siteUrl' => $siteUrl, 'inspectionUrl' => $inspectionUrl, ...$result->toArray()]);
+
+            return self::SUCCESS;
+        }
+
+        $out = $this->createOutput($output);
+        $out->header('Google Search Console - URL Inspection');
+
+        $this->displayIndexingStatus($out, $result);
+        $this->displayCanonicalUrls($out, $result);
+        $this->displayMobileUsability($out, $result);
+
+        return self::SUCCESS;
+    }
+
+    private function displayIndexingStatus(ConsoleOutput $out, UrlInspectionResult $result): void
+    {
+        $out->section('Indexing Status');
+        $out->keyValue('Verdict', $result->verdict, $result->isIndexed() ? 'green-400' : 'red-400');
+        $out->keyValueBool('Is Indexed', $result->isIndexed());
+        $out->keyValueBool('Is Indexable', $result->isIndexable(), 'green-400', 'yellow-400');
+        $out->keyValueBool('Is Crawlable', $result->isCrawlable(), 'green-400', 'yellow-400');
+        $out->keyValue('Coverage State', $result->coverageState);
+        $out->keyValue('Indexing State', $result->indexingState);
+        $out->keyValue('Robots.txt', $result->robotsTxtState);
+        $out->keyValue('Page Fetch', $result->pageFetchState);
+        $out->keyValue('Crawled As', $result->crawledAs ?? 'N/A');
+        $out->keyValue('Last Crawl', $result->lastCrawlTime?->format('Y-m-d H:i:s') ?? 'N/A');
+    }
+
+    private function displayCanonicalUrls(ConsoleOutput $out, UrlInspectionResult $result): void
+    {
+        $out->section('Canonical URLs');
+        $out->keyValue('Google', $result->googleCanonical ?? 'N/A');
+        $out->keyValue('User', $result->userCanonical ?? 'N/A');
+    }
+
+    private function displayMobileUsability(ConsoleOutput $out, UrlInspectionResult $result): void
+    {
+        $out->section('Mobile Usability');
+        $out->keyValueBool('Mobile Friendly', $result->isMobileFriendly);
+        $out->keyValue('Issues', $result->mobileUsabilityIssue ?? 'None', $result->mobileUsabilityIssue !== null ? 'yellow-400' : 'green-400');
+
+        if ($result->inspectionResultLink !== '') {
+            $out->newLine();
+            $out->info(sprintf('Full report: %s', $result->inspectionResultLink));
+        }
+
+        $out->newLine();
+    }
+
+}

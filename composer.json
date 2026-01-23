@@ -1,12 +1,21 @@
 {
     "name": "pekral/google-console",
-    "description": "",
+    "description": "PHP wrapper for Google Search Console API with typed DTOs and CLI commands",
     "license": "MIT",
-    "type": "project",
+    "type": "library",
+    "keywords": [
+        "google",
+        "search-console",
+        "seo",
+        "webmaster-tools",
+        "api",
+        "analytics",
+        "indexing"
+    ],
     "authors": [
         {
-            "name": "Your Name",
-            "email": "your.email@example.com",
+            "name": "Petr Král",
+            "email": "kral.petr.88@gmail.com",
             "homepage": "https://github.com/pekral",
             "role": "Maintainer"
         }
@@ -17,11 +26,13 @@
         "source": "https://github.com/pekral/google-console"
     },
     "require": {
-        "php": "^8.4"
+        "php": "^8.4",
+        "google/apiclient": "^2.15"
     },
     "require-dev": {
         "ergebnis/composer-normalize": "^2.48.2",
         "laravel/pint": "^1.27.0",
+        "mockery/mockery": "^1.6",
         "nunomaduro/termwind": "^2.3.3",
         "pekral/cursor-rules": "dev-master",
         "pekral/phpcs-rules": "dev-master",
@@ -59,7 +70,14 @@
         "bump-after-update": true,
         "sort-packages": true
     },
+    "extra": {
+        "google/apiclient-services": [
+            "SearchConsole",
+            "Webmasters"
+        ]
+    },
     "scripts": {
+        "pre-autoload-dump": "Google\\Task\\Composer::cleanup",
         "analyse": [
             "echo \"Running analyse...\"",
             "find src/ -name \"*.php\" 2>/dev/null | head -1 | grep -q . && vendor/bin/phpstan analyse --memory-limit=2G || echo \"No PHP files to analyse\""
