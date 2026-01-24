@@ -2,12 +2,7 @@
 
 All notable changes to `arch-app-services` will be documented in this file.
 
-## [Unreleased] - 2026-01-26 (PR #5)
-
-
-- 📝 **Changed**: 
-
-## [Unreleased] - 2026-01-26
+## [Unreleased] - 2026-01-24
 
 
 - 🐛 **Fixed**: composer scripts fix
