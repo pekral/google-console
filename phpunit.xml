@@ -14,10 +14,6 @@
     <source>
         <include>
             <directory>src</directory>
-            <directory>build-package</directory>
         </include>
-        <exclude>
-            <file>build-package/PostCreateProject.php</file>
-        </exclude>
     </source>
 </phpunit>

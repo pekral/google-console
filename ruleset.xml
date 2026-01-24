@@ -1,26 +1,6 @@
 <?xml version="1.0"?>
-<ruleset name="Arch App Services PHPCS Rules">
-    <description>Custom PHPCS rules for Arch App Services package</description>
+<ruleset name="Google Console PHPCS Rules">
+    <description>Custom PHPCS rules for Google Console package</description>
     <!-- Include pekral/phpcs-rules -->
     <rule ref="vendor/pekral/phpcs-rules/ruleset.xml"/>
-
-    <!-- Exclude build-package from length and complexity rules (build-time script deleted after project creation) -->
-    <rule ref="SlevomatCodingStandard.Files.FileLength.FileTooLong">
-        <exclude-pattern>build-package/*</exclude-pattern>
-    </rule>
-    <rule ref="SlevomatCodingStandard.Classes.ClassLength.ClassTooLong">
-        <exclude-pattern>build-package/*</exclude-pattern>
-    </rule>
-    <rule ref="SlevomatCodingStandard.Functions.FunctionLength.FunctionLength">
-        <exclude-pattern>build-package/*</exclude-pattern>
-    </rule>
-    <rule ref="SlevomatCodingStandard.Complexity.Cognitive.ComplexityTooHigh">
-        <exclude-pattern>build-package/*</exclude-pattern>
-    </rule>
-    <rule ref="SlevomatCodingStandard.Files.LineLength.LineTooLong">
-        <exclude-pattern>build-package/*</exclude-pattern>
-    </rule>
-    <rule ref="SlevomatCodingStandard.Classes.ForbiddenPublicProperty.ForbiddenPublicProperty">
-        <exclude-pattern>build-package/*</exclude-pattern>
-    </rule>
 </ruleset>

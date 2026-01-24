@@ -78,71 +78,19 @@
     },
     "scripts": {
         "pre-autoload-dump": "Google\\Task\\Composer::cleanup",
-        "analyse": [
-            "echo \"Running analyse...\"",
-            "find src/ -name \"*.php\" 2>/dev/null | head -1 | grep -q . && vendor/bin/phpstan analyse --memory-limit=2G || echo \"No PHP files to analyse\""
-        ],
-        "check": [
-            "echo \"🚀 Running full quality check...\"",
-            "@composer-normalize-check",
-            "@phpcs-check",
-            "@pint-check",
-            "@rector-check",
-            "@analyse",
-            "@security-audit",
-            "@test:coverage"
-        ],
-        "composer-normalize-check": [
-            "echo \"📝 Checking Composer normalize...\"",
-            "composer normalize --dry-run"
-        ],
-        "composer-normalize-fix": [
-            "echo \"📝 Running Composer normalize fix...\"",
-            "composer normalize || true"
-        ],
-        "coverage": [
-            "echo \"📊 Running code coverage analysis...\"",
-            "@test:coverage"
-        ],
-        "fix": [
-            "echo \"🔧 Running all fixes...\"",
-            "@composer-normalize-fix",
-            "@rector-fix",
-            "@pint-fix",
-            "@phpcs-fix",
-            "echo \"✅ All fixes completed!\""
-        ],
-        "phpcs-check": [
-            "echo \"Running phpcs-check...\"",
-            "find src/ tests/ -name \"*.php\" 2>/dev/null | head -1 | grep -q . && vendor/bin/phpcs --standard=ruleset.xml src/ tests/ || echo \"No PHP files to check\""
-        ],
-        "phpcs-fix": [
-            "echo \"Running phpcs-fix...\"",
-            "find src/ tests/ -name \"*.php\" 2>/dev/null | head -1 | grep -q . && vendor/bin/phpcbf --standard=ruleset.xml src/ tests/ || true"
-        ],
-        "pint-check": [
-            "echo \"Running pint-check...\"",
-            "find src/ tests/ -name \"*.php\" 2>/dev/null | head -1 | grep -q . && vendor/bin/pint src/ tests/ --test || echo \"No PHP files to check\""
-        ],
-        "pint-fix": [
-            "echo \"Running pint-fix...\"",
-            "find src/ tests/ -name \"*.php\" 2>/dev/null | head -1 | grep -q . && vendor/bin/pint src/ tests/ || true"
-        ],
-        "rector-check": [
-            "echo \"Running rector-check...\"",
-            "find src/ tests/ -name \"*.php\" 2>/dev/null | head -1 | grep -q . && vendor/bin/rector process --dry-run --no-progress-bar || echo \"No PHP files to check\""
-        ],
-        "rector-fix": [
-            "echo \"Running rector-fix...\"",
-            "find src/ tests/ -name \"*.php\" 2>/dev/null | head -1 | grep -q . && vendor/bin/rector process --no-progress-bar || true"
-        ],
-        "security-audit": [
-            "echo \"🔒 Running Composer security audit...\"",
-            "composer audit --format=summary"
-        ],
-        "test:coverage": [
-            "echo \"Running test:coverage...\"",
-            "find tests/ -name \"*.php\" 2>/dev/null | head -1 | grep -q . && php -dpcov.enabled=1 -dpcov.directory=. -dxdebug.mode=off vendor/bin/pest --coverage --min=100 || echo \"No tests to run\""
-        ]
+        "analyse": "vendor/bin/phpstan analyse --memory-limit=2G",
+        "check": "composer run composer-normalize-check && composer run phpcs-check && composer run pint-check && composer run rector-check && composer run analyse && composer run security-audit && composer run test:coverage",
+        "composer-normalize-check": "composer normalize --dry-run",
+        "composer-normalize-fix": "composer normalize",
+        "coverage": "@test:coverage",
+        "fix": "composer run composer-normalize-fix && composer run rector-fix && composer run pint-fix && composer run phpcs-fix || true",
+        "phpcs-check": "vendor/bin/phpcs --standard=ruleset.xml src/ tests/",
+        "phpcs-fix": "vendor/bin/phpcbf --standard=ruleset.xml src/ tests/ || true",
+        "pint-check": "vendor/bin/pint src/ tests/ --test",
+        "pint-fix": "vendor/bin/pint src/ tests/",
+        "rector-check": "vendor/bin/rector process --dry-run --no-progress-bar",
+        "rector-fix": "vendor/bin/rector process --no-progress-bar",
+        "security-audit": "composer audit --format=summary",
+        "test:coverage": "php -dpcov.enabled=1 -dpcov.directory=. -dxdebug.mode=off vendor/bin/pest --coverage --min=100"
     }
 }

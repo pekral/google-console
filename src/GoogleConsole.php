@@ -13,6 +13,7 @@ use Google\Service\SearchConsole\InspectUrlIndexRequest;
 use Google\Service\SearchConsole\InspectUrlIndexResponse;
 use Google\Service\SearchConsole\UrlInspectionResult as GoogleUrlInspectionResult;
 use Google\Service\Webmasters as WebmastersService;
+use Google\Service\Webmasters\ApiDataRow;
 use Google\Service\Webmasters\SearchAnalyticsQueryResponse;
 use Google\Service\Webmasters\SitesListResponse;
 use Google\Service\Webmasters\WmxSite;
@@ -33,8 +34,6 @@ use Pekral\GoogleConsole\Validator\DataValidator;
 use Throwable;
 
 /**
- * Main entry point for interacting with Google Search Console API.
- *
  * Provides methods to retrieve site information, search analytics data,
  * and URL inspection results from Google Search Console.
  */
@@ -67,9 +66,6 @@ final class GoogleConsole implements ConsoleContract
         return new self(new GoogleClientFactory()->create($config));
     }
 
-    /**
-     * Returns the underlying Google API client.
-     */
     public function getClient(): Client
     {
         return $this->client;
@@ -125,22 +121,7 @@ final class GoogleConsole implements ConsoleContract
             $response = $searchAnalytics->query($siteUrl, $request);
             assert($response instanceof SearchAnalyticsQueryResponse);
 
-            $rows = [];
-
-            /** @var \Google\Service\Webmasters\ApiDataRow $row */
-            foreach ($response->getRows() ?? [] as $row) {
-                /** @var array<string> $keys */
-                $keys = $row->getKeys() ?? [];
-                $rows[] = SearchAnalyticsRow::fromApiResponse([
-                    'clicks' => TypeHelper::toFloat($row->getClicks()),
-                    'ctr' => TypeHelper::toFloat($row->getCtr()),
-                    'impressions' => TypeHelper::toFloat($row->getImpressions()),
-                    'keys' => $keys,
-                    'position' => TypeHelper::toFloat($row->getPosition()),
-                ], $dimensions);
-            }
-
-            return $rows;
+            return $this->buildSearchAnalyticsRows($response->getRows() ?? [], $dimensions);
         } catch (Exception $e) {
             throw new GoogleConsoleFailure(
                 $this->formatApiError($e, sprintf('Search analytics failed for site \'%s\'', $siteUrl)),
@@ -280,6 +261,25 @@ final class GoogleConsole implements ConsoleContract
         $reason = $firstError['reason'] ?? 'unknown';
 
         return sprintf('%s: %s (reason: %s)', $context, $message, $reason);
+    }
+
+    /**
+     * @param array<\Google\Service\Webmasters\ApiDataRow> $rows
+     * @param array<string> $dimensions
+     * @return array<\Pekral\GoogleConsole\DTO\SearchAnalyticsRow>
+     */
+    private function buildSearchAnalyticsRows(array $rows, array $dimensions): array
+    {
+        return array_map(
+            fn (ApiDataRow $row): SearchAnalyticsRow => SearchAnalyticsRow::fromApiResponse([
+                'clicks' => TypeHelper::toFloat($row->getClicks()),
+                'ctr' => TypeHelper::toFloat($row->getCtr()),
+                'impressions' => TypeHelper::toFloat($row->getImpressions()),
+                'keys' => TypeHelper::toStringArray($row->getKeys()),
+                'position' => TypeHelper::toFloat($row->getPosition()),
+            ], $dimensions),
+            $rows,
+        );
     }
 
 }

@@ -3048,12 +3048,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/pekral/cursor-rules.git",
-                "reference": "9325481b21e6b2a3b2c3d05fa39855ae3bcc6efc"
+                "reference": "2bae46d734afa715af5d005bad7c2d7a8bfbcf7c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/pekral/cursor-rules/zipball/9325481b21e6b2a3b2c3d05fa39855ae3bcc6efc",
-                "reference": "9325481b21e6b2a3b2c3d05fa39855ae3bcc6efc",
+                "url": "https://api.github.com/repos/pekral/cursor-rules/zipball/2bae46d734afa715af5d005bad7c2d7a8bfbcf7c",
+                "reference": "2bae46d734afa715af5d005bad7c2d7a8bfbcf7c",
                 "shasum": ""
             },
             "require": {
@@ -3101,7 +3101,7 @@
                 "issues": "https://github.com/pekral/cursor-rules/issues",
                 "source": "https://github.com/pekral/cursor-rules/tree/master"
             },
-            "time": "2026-01-24T15:13:51+00:00"
+            "time": "2026-01-24T16:51:35+00:00"
         },
         {
             "name": "pekral/phpcs-rules",
@@ -3190,17 +3190,17 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/pekral/rector-rules.git",
-                "reference": "6658abae5106aa728ca50e7fa871e9190a9e8c09"
+                "reference": "bf19cc3c48160eb82d52a7671f0dc117f34b67e2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/pekral/rector-rules/zipball/6658abae5106aa728ca50e7fa871e9190a9e8c09",
-                "reference": "6658abae5106aa728ca50e7fa871e9190a9e8c09",
+                "url": "https://api.github.com/repos/pekral/rector-rules/zipball/bf19cc3c48160eb82d52a7671f0dc117f34b67e2",
+                "reference": "bf19cc3c48160eb82d52a7671f0dc117f34b67e2",
                 "shasum": ""
             },
             "require": {
                 "php": "^8.4",
-                "rector/rector": "^2.3.1"
+                "rector/rector": "^2.3.4"
             },
             "require-dev": {
                 "pekral/cursor-rules": "^0.2.0",
@@ -3247,7 +3247,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-01-13T16:00:40+00:00"
+            "time": "2026-01-24T16:08:59+00:00"
         },
         {
             "name": "pestphp/pest",
