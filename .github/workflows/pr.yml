@@ -8,6 +8,9 @@ on:
 
 # To add more PHP versions, change ['8.4'] to ['8.4', '8.5'] in all matrix definitions below
 
+env:
+  CACHE_VERSION: v2
+
 jobs:
   phpcs-check:
     name: "🔍 PHP CodeSniffer (PHP ${{ matrix.php-version }})"
@@ -33,10 +36,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: vendor
-          key: ${{ runner.os }}-php-${{ matrix.php-version }}-${{ hashFiles('**/composer.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-php-${{ matrix.php-version }}-
-            ${{ runner.os }}-php-
+          key: ${{ env.CACHE_VERSION }}-${{ runner.os }}-php-${{ matrix.php-version }}-${{ hashFiles('**/composer.lock') }}
 
       - name: Install dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
@@ -68,10 +68,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: vendor
-          key: ${{ runner.os }}-php-${{ matrix.php-version }}-${{ hashFiles('**/composer.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-php-${{ matrix.php-version }}-
-            ${{ runner.os }}-php-
+          key: ${{ env.CACHE_VERSION }}-${{ runner.os }}-php-${{ matrix.php-version }}-${{ hashFiles('**/composer.lock') }}
 
       - name: Install dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
@@ -103,10 +100,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: vendor
-          key: ${{ runner.os }}-php-${{ matrix.php-version }}-${{ hashFiles('**/composer.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-php-${{ matrix.php-version }}-
-            ${{ runner.os }}-php-
+          key: ${{ env.CACHE_VERSION }}-${{ runner.os }}-php-${{ matrix.php-version }}-${{ hashFiles('**/composer.lock') }}
 
       - name: Install dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
@@ -138,10 +132,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: vendor
-          key: ${{ runner.os }}-php-${{ matrix.php-version }}-${{ hashFiles('**/composer.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-php-${{ matrix.php-version }}-
-            ${{ runner.os }}-php-
+          key: ${{ env.CACHE_VERSION }}-${{ runner.os }}-php-${{ matrix.php-version }}-${{ hashFiles('**/composer.lock') }}
 
       - name: Install dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
@@ -183,10 +174,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: vendor
-          key: ${{ runner.os }}-php-${{ matrix.php-version }}-${{ hashFiles('**/composer.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-php-${{ matrix.php-version }}-
-            ${{ runner.os }}-php-
+          key: ${{ env.CACHE_VERSION }}-${{ runner.os }}-php-${{ matrix.php-version }}-${{ hashFiles('**/composer.lock') }}
 
       - name: Install dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
@@ -218,10 +206,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: vendor
-          key: ${{ runner.os }}-php-${{ matrix.php-version }}-${{ hashFiles('**/composer.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-php-${{ matrix.php-version }}-
-            ${{ runner.os }}-php-
+          key: ${{ env.CACHE_VERSION }}-${{ runner.os }}-php-${{ matrix.php-version }}-${{ hashFiles('**/composer.lock') }}
 
       - name: Install dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
@@ -253,10 +238,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: vendor
-          key: ${{ runner.os }}-php-${{ matrix.php-version }}-${{ hashFiles('**/composer.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-php-${{ matrix.php-version }}-
-            ${{ runner.os }}-php-
+          key: ${{ env.CACHE_VERSION }}-${{ runner.os }}-php-${{ matrix.php-version }}-${{ hashFiles('**/composer.lock') }}
 
       - name: Install dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
