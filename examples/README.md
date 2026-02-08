@@ -23,6 +23,7 @@ php examples/<name>.php
 | [search-analytics.php](search-analytics.php) | `pekral:google-analytics-search` | Search analytics (30 days, query dimension) |
 | [inspect-url.php](inspect-url.php) | `pekral:google-url-inspect` | Inspect URL: indexing status, **business output** (primary status, confidence, reason codes), mobile usability. Option: `--mode=strict` \| `--mode=best-effort` |
 | [inspect-url-business-model.php](inspect-url-business-model.php) | — | Programmatic: call `inspectUrl()` with **URL normalizer** and print the **indexing check result** (primary status, confidence, reason_codes, checked_at, source_type). Uses `UrlNormalizationRules::forApiCalls()`. |
+| [inspect-batch-urls.php](inspect-batch-urls.php) | — | Programmatic: call `inspectBatchUrls()` with a list of URLs and optional **critical URLs**. Prints per-URL results, aggregation (indexed/not indexed/unknown counts, reason code overview), critical URL statuses, and batch verdict (PASS/FAIL). Option: `--critical=url1,url2` |
 | [request-indexing.php](request-indexing.php) | `pekral:google-request-indexing` | Request indexing for a chosen URL |
 | [url-normalization.php](url-normalization.php) | — | **URL normalization**: standalone demo of `UrlNormalizer` (defaults, forApiCalls, custom trailing slash). Optional `--api` to call `inspectUrl()` with normalizer (requires credentials). |
 
@@ -41,6 +42,10 @@ The URL inspection command and API response include an optional **business outpu
 **Operating mode:** Use `--mode=strict` (default; never INDEXED high without authoritative data) or `--mode=best-effort` (allows heuristic INDEXED with `HEURISTIC_ONLY` when data is inconclusive). When using the API, pass `OperatingMode::STRICT` or `OperatingMode::BEST_EFFORT` as the third argument to `inspectUrl()`.
 
 Use [inspect-url.php](inspect-url.php) to see it in the CLI output (section "Business output (indexing check)"). Use [inspect-url-business-model.php](inspect-url-business-model.php) to access it in your own code via `$result->indexingCheckResult` (with URL normalizer applied before the API call).
+
+### Batch URL inspection
+
+[inspect-batch-urls.php](inspect-batch-urls.php) demonstrates `inspectBatchUrls()`: pass a list of URLs and optionally mark some as critical. The batch verdict is **FAIL** if any critical URL is NOT_INDEXED. Run `php examples/inspect-batch-urls.php` or add `--critical=https://example.com/,https://example.com/key` to test critical URL handling.
 
 ### URL normalization
 

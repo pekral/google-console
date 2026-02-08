@@ -6,6 +6,7 @@ namespace Pekral\GoogleConsole;
 
 use DateTimeInterface;
 use Google\Client;
+use Pekral\GoogleConsole\DTO\BatchUrlInspectionResult;
 use Pekral\GoogleConsole\DTO\IndexingResult;
 use Pekral\GoogleConsole\DTO\Site;
 use Pekral\GoogleConsole\DTO\UrlInspectionResult;
@@ -60,6 +61,23 @@ interface ConsoleContract
      * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure
      */
     public function inspectUrl(string $siteUrl, string $inspectionUrl, ?OperatingMode $operatingMode = null): UrlInspectionResult;
+
+    /**
+     * Inspects multiple URLs and returns per-URL results plus aggregation.
+     * Batch verdict is FAIL if any critical URL is NOT_INDEXED.
+     *
+     * @param string $siteUrl The site URL that owns the inspected pages
+     * @param array<int, string> $urls URLs to inspect
+     * @param array<int, string> $criticalUrls Subset of URLs that must be INDEXED for batch to PASS
+     * @param \Pekral\GoogleConsole\Enum\OperatingMode|null $operatingMode strict (default) or best-effort
+     * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure
+     */
+    public function inspectBatchUrls(
+        string $siteUrl,
+        array $urls,
+        array $criticalUrls = [],
+        ?OperatingMode $operatingMode = null,
+    ): BatchUrlInspectionResult;
 
     /**
      * Retrieves information about a specific site.

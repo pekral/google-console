@@ -19,13 +19,18 @@ use Google\Service\Webmasters\SitesListResponse;
 use Google\Service\Webmasters\WmxSite;
 use GuzzleHttp\Psr7\Request;
 use Pekral\GoogleConsole\Config\GoogleConfig;
+use Pekral\GoogleConsole\DataBuilder\BatchAggregationBuilder;
 use Pekral\GoogleConsole\DataBuilder\RequestDataBuilder;
 use Pekral\GoogleConsole\DataBuilder\SiteDataBuilder;
 use Pekral\GoogleConsole\DataBuilder\UrlInspectionDataBuilder;
+use Pekral\GoogleConsole\DTO\BatchUrlInspectionResult;
 use Pekral\GoogleConsole\DTO\IndexingResult;
+use Pekral\GoogleConsole\DTO\PerUrlInspectionResult;
 use Pekral\GoogleConsole\DTO\SearchAnalyticsRow;
 use Pekral\GoogleConsole\DTO\Site;
 use Pekral\GoogleConsole\DTO\UrlInspectionResult;
+use Pekral\GoogleConsole\Enum\BatchVerdict;
+use Pekral\GoogleConsole\Enum\IndexingCheckStatus;
 use Pekral\GoogleConsole\Enum\IndexingNotificationType;
 use Pekral\GoogleConsole\Enum\OperatingMode;
 use Pekral\GoogleConsole\Exception\GoogleConsoleFailure;
@@ -53,6 +58,7 @@ final class GoogleConsole implements ConsoleContract
         private readonly RequestDataBuilder $requestDataBuilder = new RequestDataBuilder(),
         private readonly DataValidator $dataValidator = new DataValidator(),
         private readonly ?UrlNormalizer $urlNormalizer = null,
+        private readonly BatchAggregationBuilder $batchAggregationBuilder = new BatchAggregationBuilder(),
     ) {
     }
 
@@ -172,6 +178,46 @@ final class GoogleConsole implements ConsoleContract
     }
 
     /**
+     * Inspects multiple URLs and returns per-URL results plus aggregation.
+     * Batch verdict is FAIL if any critical URL is NOT_INDEXED.
+     *
+     * @param string $siteUrl The site URL that owns the inspected pages
+     * @param array<int, string> $urls URLs to inspect
+     * @param array<int, string> $criticalUrls Subset of URLs that must be INDEXED for batch to PASS
+     * @param \Pekral\GoogleConsole\Enum\OperatingMode|null $operatingMode strict (default) or best-effort
+     * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure
+     */
+    public function inspectBatchUrls(
+        string $siteUrl,
+        array $urls,
+        array $criticalUrls = [],
+        ?OperatingMode $operatingMode = null,
+    ): BatchUrlInspectionResult {
+        $criticalSet = array_flip($criticalUrls);
+        $perUrlResultsList = [];
+        $perUrlResultsByUrl = [];
+
+        foreach ($urls as $url) {
+            $result = $this->inspectUrl($siteUrl, $url, $operatingMode);
+            $status = IndexingCheckStatus::fromUrlInspectionResult($result);
+            $perUrl = new PerUrlInspectionResult(url: $url, status: $status, result: $result);
+            $perUrlResultsList[] = $perUrl;
+            $perUrlResultsByUrl[$url] = $perUrl;
+        }
+
+        $aggregation = $this->batchAggregationBuilder->build($perUrlResultsList);
+        $criticalUrlResults = $this->filterCriticalResults($perUrlResultsList, $criticalSet);
+        $batchVerdict = $this->computeBatchVerdict($criticalUrlResults);
+
+        return new BatchUrlInspectionResult(
+            perUrlResults: $perUrlResultsByUrl,
+            aggregation: $aggregation,
+            criticalUrlResults: $criticalUrlResults,
+            batchVerdict: $batchVerdict,
+        );
+    }
+
+    /**
      * Retrieves information about a specific site.
      *
      * @param string $siteUrl The site URL to retrieve
@@ -239,6 +285,38 @@ final class GoogleConsole implements ConsoleContract
                 $e,
             );
         }
+    }
+
+    /**
+     * @param array<int, \Pekral\GoogleConsole\DTO\PerUrlInspectionResult> $perUrlResultsList
+     * @param array<string, int> $criticalSet
+     * @return array<int, \Pekral\GoogleConsole\DTO\PerUrlInspectionResult>
+     */
+    private function filterCriticalResults(array $perUrlResultsList, array $criticalSet): array
+    {
+        $out = [];
+
+        foreach ($perUrlResultsList as $item) {
+            if (isset($criticalSet[$item->url])) {
+                $out[] = $item;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param array<int, \Pekral\GoogleConsole\DTO\PerUrlInspectionResult> $criticalUrlResults
+     */
+    private function computeBatchVerdict(array $criticalUrlResults): BatchVerdict
+    {
+        foreach ($criticalUrlResults as $item) {
+            if ($item->status === IndexingCheckStatus::NOT_INDEXED) {
+                return BatchVerdict::FAIL;
+            }
+        }
+
+        return BatchVerdict::PASS;
     }
 
     private function getWebmastersService(): WebmastersService

@@ -90,6 +90,7 @@
             "php examples/search-analytics.php",
             "php examples/inspect-url.php",
             "php examples/inspect-url-business-model.php",
+            "php examples/inspect-batch-urls.php",
             "php examples/request-indexing.php",
             "php examples/url-normalization.php"
         ],

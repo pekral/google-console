@@ -18,10 +18,13 @@ use Google\Service\Webmasters\WmxSite;
 use GuzzleHttp\Client as HttpClient;
 use GuzzleHttp\Psr7\Response;
 use Pekral\GoogleConsole\Config\GoogleConfig;
+use Pekral\GoogleConsole\DTO\BatchUrlInspectionResult;
 use Pekral\GoogleConsole\DTO\IndexingResult;
 use Pekral\GoogleConsole\DTO\SearchAnalyticsRow;
 use Pekral\GoogleConsole\DTO\Site;
 use Pekral\GoogleConsole\DTO\UrlInspectionResult;
+use Pekral\GoogleConsole\Enum\BatchVerdict;
+use Pekral\GoogleConsole\Enum\IndexingCheckStatus;
 use Pekral\GoogleConsole\Enum\IndexingNotificationType;
 use Pekral\GoogleConsole\Exception\GoogleConsoleFailure;
 use Pekral\GoogleConsole\Factory\GoogleClientFactory;
@@ -658,4 +661,136 @@ describe(GoogleConsole::class, function (): void {
 
         $console->requestIndexing('https://example.com/page');
     })->throws(GoogleConsoleFailure::class, 'Indexing request failed for URL \'https://example.com/page\'');
+
+    it('inspectBatchUrls returns per-url results and aggregation', function (): void {
+        $console = createGoogleConsole();
+
+        $indexStatusIndexed = Mockery::mock(IndexStatusInspectionResult::class);
+        $indexStatusIndexed->shouldReceive('getVerdict')->andReturn('PASS');
+        $indexStatusIndexed->shouldReceive('getCoverageState')->andReturn('Submitted and indexed');
+        $indexStatusIndexed->shouldReceive('getRobotsTxtState')->andReturn('ALLOWED');
+        $indexStatusIndexed->shouldReceive('getIndexingState')->andReturn('INDEXING_ALLOWED');
+        $indexStatusIndexed->shouldReceive('getLastCrawlTime')->andReturn(null);
+        $indexStatusIndexed->shouldReceive('getPageFetchState')->andReturn('SUCCESSFUL');
+        $indexStatusIndexed->shouldReceive('getCrawledAs')->andReturn('MOBILE');
+        $indexStatusIndexed->shouldReceive('getGoogleCanonical')->andReturn('https://example.com/page-a');
+        $indexStatusIndexed->shouldReceive('getUserCanonical')->andReturn('https://example.com/page-a');
+
+        $indexStatusNotIndexed = Mockery::mock(IndexStatusInspectionResult::class);
+        $indexStatusNotIndexed->shouldReceive('getVerdict')->andReturn('FAIL');
+        $indexStatusNotIndexed->shouldReceive('getCoverageState')->andReturn('Not indexed');
+        $indexStatusNotIndexed->shouldReceive('getRobotsTxtState')->andReturn('ALLOWED');
+        $indexStatusNotIndexed->shouldReceive('getIndexingState')->andReturn('INDEXING_ALLOWED');
+        $indexStatusNotIndexed->shouldReceive('getLastCrawlTime')->andReturn(null);
+        $indexStatusNotIndexed->shouldReceive('getPageFetchState')->andReturn('SUCCESSFUL');
+        $indexStatusNotIndexed->shouldReceive('getCrawledAs')->andReturn('MOBILE');
+        $indexStatusNotIndexed->shouldReceive('getGoogleCanonical')->andReturn('https://example.com/page-b');
+        $indexStatusNotIndexed->shouldReceive('getUserCanonical')->andReturn('https://example.com/page-b');
+
+        $mobileUsability = Mockery::mock(MobileUsabilityInspectionResult::class);
+        $mobileUsability->shouldReceive('getVerdict')->andReturn('PASS');
+        $mobileUsability->shouldReceive('getIssues')->andReturn([]);
+
+        $inspectionResultA = Mockery::mock(GoogleUrlInspectionResult::class);
+        $inspectionResultA->shouldReceive('getInspectionResultLink')->andReturn('');
+        $inspectionResultA->shouldReceive('getIndexStatusResult')->andReturn($indexStatusIndexed);
+        $inspectionResultA->shouldReceive('getMobileUsabilityResult')->andReturn($mobileUsability);
+
+        $inspectionResultB = Mockery::mock(GoogleUrlInspectionResult::class);
+        $inspectionResultB->shouldReceive('getInspectionResultLink')->andReturn('');
+        $inspectionResultB->shouldReceive('getIndexStatusResult')->andReturn($indexStatusNotIndexed);
+        $inspectionResultB->shouldReceive('getMobileUsabilityResult')->andReturn($mobileUsability);
+
+        $inspectResponseA = Mockery::mock(InspectUrlIndexResponse::class);
+        $inspectResponseA->shouldReceive('getInspectionResult')->andReturn($inspectionResultA);
+        $inspectResponseB = Mockery::mock(InspectUrlIndexResponse::class);
+        $inspectResponseB->shouldReceive('getInspectionResult')->andReturn($inspectionResultB);
+
+        $urlInspectionResource = Mockery::mock(SearchConsoleService\Resource\UrlInspectionIndex::class);
+        $urlInspectionResource->shouldReceive('inspect')
+            ->andReturnUsing(static fn (InspectUrlIndexRequest $request) => $request->getInspectionUrl() === 'https://example.com/page-a'
+                ? $inspectResponseA
+                : $inspectResponseB);
+
+        $searchConsoleService = Mockery::mock(SearchConsoleService::class);
+        $searchConsoleService->urlInspection_index = $urlInspectionResource;
+
+        $reflection = new ReflectionClass($console);
+        $property = $reflection->getProperty('searchConsoleService');
+        $property->setValue($console, $searchConsoleService);
+
+        $result = $console->inspectBatchUrls(
+            'https://example.com/',
+            ['https://example.com/page-a', 'https://example.com/page-b'],
+        );
+
+        expect($result)->toBeInstanceOf(BatchUrlInspectionResult::class)
+            ->and($result->batchVerdict)->toBe(BatchVerdict::PASS)
+            ->and($result->perUrlResults)->toHaveCount(2)
+            ->and($result->aggregation->indexedCount)->toBe(1)
+            ->and($result->aggregation->notIndexedCount)->toBe(1)
+            ->and($result->aggregation->unknownCount)->toBe(0)
+            ->and($result->perUrlResults['https://example.com/page-a']->status)->toBe(IndexingCheckStatus::INDEXED)
+            ->and($result->perUrlResults['https://example.com/page-b']->status)->toBe(IndexingCheckStatus::NOT_INDEXED);
+    });
+
+    it('inspectBatchUrls returns FAIL when critical url is NOT_INDEXED', function (): void {
+        $console = createGoogleConsole();
+
+        $indexStatusNotIndexed = Mockery::mock(IndexStatusInspectionResult::class);
+        $indexStatusNotIndexed->shouldReceive('getVerdict')->andReturn('FAIL');
+        $indexStatusNotIndexed->shouldReceive('getCoverageState')->andReturn('Not indexed');
+        $indexStatusNotIndexed->shouldReceive('getRobotsTxtState')->andReturn('ALLOWED');
+        $indexStatusNotIndexed->shouldReceive('getIndexingState')->andReturn('INDEXING_ALLOWED');
+        $indexStatusNotIndexed->shouldReceive('getLastCrawlTime')->andReturn(null);
+        $indexStatusNotIndexed->shouldReceive('getPageFetchState')->andReturn('SUCCESSFUL');
+        $indexStatusNotIndexed->shouldReceive('getCrawledAs')->andReturn('MOBILE');
+        $indexStatusNotIndexed->shouldReceive('getGoogleCanonical')->andReturn('https://example.com/critical');
+        $indexStatusNotIndexed->shouldReceive('getUserCanonical')->andReturn('https://example.com/critical');
+
+        $mobileUsability = Mockery::mock(MobileUsabilityInspectionResult::class);
+        $mobileUsability->shouldReceive('getVerdict')->andReturn('PASS');
+        $mobileUsability->shouldReceive('getIssues')->andReturn([]);
+
+        $inspectionResult = Mockery::mock(GoogleUrlInspectionResult::class);
+        $inspectionResult->shouldReceive('getInspectionResultLink')->andReturn('');
+        $inspectionResult->shouldReceive('getIndexStatusResult')->andReturn($indexStatusNotIndexed);
+        $inspectionResult->shouldReceive('getMobileUsabilityResult')->andReturn($mobileUsability);
+
+        $inspectResponse = Mockery::mock(InspectUrlIndexResponse::class);
+        $inspectResponse->shouldReceive('getInspectionResult')->andReturn($inspectionResult);
+
+        $urlInspectionResource = Mockery::mock(SearchConsoleService\Resource\UrlInspectionIndex::class);
+        $urlInspectionResource->shouldReceive('inspect')->andReturn($inspectResponse);
+
+        $searchConsoleService = Mockery::mock(SearchConsoleService::class);
+        $searchConsoleService->urlInspection_index = $urlInspectionResource;
+
+        $reflection = new ReflectionClass($console);
+        $property = $reflection->getProperty('searchConsoleService');
+        $property->setValue($console, $searchConsoleService);
+
+        $result = $console->inspectBatchUrls(
+            'https://example.com/',
+            ['https://example.com/critical'],
+            ['https://example.com/critical'],
+        );
+
+        expect($result->batchVerdict)->toBe(BatchVerdict::FAIL)
+            ->and($result->criticalUrlResults)->toHaveCount(1)
+            ->and($result->criticalUrlResults[0]->status)->toBe(IndexingCheckStatus::NOT_INDEXED);
+    });
+
+    it('inspectBatchUrls returns PASS when no critical urls', function (): void {
+        $console = createGoogleConsole();
+
+        $result = $console->inspectBatchUrls('https://example.com/', [], []);
+
+        expect($result->batchVerdict)->toBe(BatchVerdict::PASS)
+            ->and($result->perUrlResults)->toBeEmpty()
+            ->and($result->criticalUrlResults)->toBeEmpty()
+            ->and($result->aggregation->indexedCount)->toBe(0)
+            ->and($result->aggregation->notIndexedCount)->toBe(0)
+            ->and($result->aggregation->unknownCount)->toBe(0);
+    });
 });
