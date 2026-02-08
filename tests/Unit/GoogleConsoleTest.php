@@ -18,12 +18,15 @@ use Google\Service\Webmasters\WmxSite;
 use GuzzleHttp\Client as HttpClient;
 use GuzzleHttp\Psr7\Response;
 use Pekral\GoogleConsole\Config\GoogleConfig;
+use Pekral\GoogleConsole\DTO\BatchAggregation;
 use Pekral\GoogleConsole\DTO\BatchUrlInspectionResult;
 use Pekral\GoogleConsole\DTO\IndexingResult;
+use Pekral\GoogleConsole\DTO\PerUrlInspectionResult;
 use Pekral\GoogleConsole\DTO\SearchAnalyticsRow;
 use Pekral\GoogleConsole\DTO\Site;
 use Pekral\GoogleConsole\DTO\UrlInspectionResult;
 use Pekral\GoogleConsole\Enum\BatchVerdict;
+use Pekral\GoogleConsole\Enum\IndexingChangeType;
 use Pekral\GoogleConsole\Enum\IndexingCheckStatus;
 use Pekral\GoogleConsole\Enum\IndexingNotificationType;
 use Pekral\GoogleConsole\Exception\GoogleConsoleFailure;
@@ -792,5 +795,38 @@ describe(GoogleConsole::class, function (): void {
             ->and($result->aggregation->indexedCount)->toBe(0)
             ->and($result->aggregation->notIndexedCount)->toBe(0)
             ->and($result->aggregation->unknownCount)->toBe(0);
+    });
+
+    it('compareIndexingRuns returns changes and deltas between two runs', function (): void {
+        $indexedResult = UrlInspectionResult::fromApiResponse([
+            'indexStatusResult' => ['verdict' => 'PASS', 'coverageState' => 'Indexed'],
+            'mobileUsabilityResult' => ['verdict' => 'PASS', 'issues' => []],
+        ]);
+        $notIndexedResult = UrlInspectionResult::fromApiResponse([
+            'indexStatusResult' => ['verdict' => 'FAIL', 'coverageState' => ''],
+            'mobileUsabilityResult' => ['verdict' => 'PASS', 'issues' => []],
+        ]);
+        $url = 'https://example.com/page';
+        $aggregation = new BatchAggregation(0, 0, 0, []);
+        $previous = new BatchUrlInspectionResult(
+            perUrlResults: [$url => new PerUrlInspectionResult($url, IndexingCheckStatus::INDEXED, $indexedResult)],
+            aggregation: $aggregation,
+            criticalUrlResults: [],
+            batchVerdict: BatchVerdict::PASS,
+        );
+        $current = new BatchUrlInspectionResult(
+            perUrlResults: [$url => new PerUrlInspectionResult($url, IndexingCheckStatus::NOT_INDEXED, $notIndexedResult)],
+            aggregation: $aggregation,
+            criticalUrlResults: [],
+            batchVerdict: BatchVerdict::FAIL,
+        );
+
+        $console = createGoogleConsole();
+        $comparison = $console->compareIndexingRuns($previous, $current);
+
+        expect($comparison->changes)->toHaveCount(1)
+            ->and($comparison->changes[0]->changeType)->toBe(IndexingChangeType::DROPPED_FROM_INDEX)
+            ->and($comparison->indexedDelta)->toBe(-1)
+            ->and($comparison->notIndexedDelta)->toBe(1);
     });
 });
