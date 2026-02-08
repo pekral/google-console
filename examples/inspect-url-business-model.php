@@ -10,6 +10,9 @@ declare(strict_types = 1);
  * need to programmatically act on primary status, confidence, or reason codes (e.g.
  * monitoring, batch checks, or custom reporting).
  *
+ * The console is created with UrlNormalizer (forApiCalls) so the inspection URL is
+ * normalized before the API call (fragment removed, utm_* and gclid stripped).
+ *
  * The business output model provides:
  * - primaryStatus: INDEXED | NOT_INDEXED | UNKNOWN
  * - confidence: high | medium | low
@@ -28,10 +31,18 @@ declare(strict_types = 1);
 
 require __DIR__ . '/bootstrap.php';
 
+use Pekral\GoogleConsole\Config\GoogleConfig;
 use Pekral\GoogleConsole\Enum\IndexingCheckReasonCode;
+use Pekral\GoogleConsole\Factory\GoogleClientFactory;
 use Pekral\GoogleConsole\GoogleConsole;
+use Pekral\GoogleConsole\UrlNormalizer\UrlNormalizationRules;
+use Pekral\GoogleConsole\UrlNormalizer\UrlNormalizer;
 
-$console = GoogleConsole::fromCredentialsPath($credentials);
+$config = GoogleConfig::fromCredentialsPath($credentials);
+$client = new GoogleClientFactory()->create($config);
+$normalizer = new UrlNormalizer(UrlNormalizationRules::forApiCalls());
+$console = new GoogleConsole($client, urlNormalizer: $normalizer);
+
 $result = $console->inspectUrl('sc-domain:pekral.cz', 'https://pekral.cz/');
 
 if ($result->indexingCheckResult === null) {

@@ -22,8 +22,9 @@ php examples/<name>.php
 | [get-site.php](get-site.php) | `pekral:google-site-get` | Get site details for https://pekral.cz/ |
 | [search-analytics.php](search-analytics.php) | `pekral:google-analytics-search` | Search analytics (30 days, query dimension) |
 | [inspect-url.php](inspect-url.php) | `pekral:google-url-inspect` | Inspect URL: indexing status, **business output** (primary status, confidence, reason codes), mobile usability. Option: `--mode=strict` \| `--mode=best-effort` |
-| [inspect-url-business-model.php](inspect-url-business-model.php) | — | Programmatic: call `inspectUrl()` and print the **indexing check result** (primary status, confidence, reason_codes, checked_at, source_type). Optional 3rd argument: `OperatingMode::STRICT` \| `OperatingMode::BEST_EFFORT` |
+| [inspect-url-business-model.php](inspect-url-business-model.php) | — | Programmatic: call `inspectUrl()` with **URL normalizer** and print the **indexing check result** (primary status, confidence, reason_codes, checked_at, source_type). Uses `UrlNormalizationRules::forApiCalls()`. |
 | [request-indexing.php](request-indexing.php) | `pekral:google-request-indexing` | Request indexing for a chosen URL |
+| [url-normalization.php](url-normalization.php) | — | **URL normalization**: standalone demo of `UrlNormalizer` (defaults, forApiCalls, custom trailing slash). Optional `--api` to call `inspectUrl()` with normalizer (requires credentials). |
 
 Shared setup (credentials, command registration) is in [bootstrap.php](bootstrap.php).
 
@@ -39,7 +40,11 @@ The URL inspection command and API response include an optional **business outpu
 
 **Operating mode:** Use `--mode=strict` (default; never INDEXED high without authoritative data) or `--mode=best-effort` (allows heuristic INDEXED with `HEURISTIC_ONLY` when data is inconclusive). When using the API, pass `OperatingMode::STRICT` or `OperatingMode::BEST_EFFORT` as the third argument to `inspectUrl()`.
 
-Use [inspect-url.php](inspect-url.php) to see it in the CLI output (section "Business output (indexing check)"). Use [inspect-url-business-model.php](inspect-url-business-model.php) to access it in your own code via `$result->indexingCheckResult`.
+Use [inspect-url.php](inspect-url.php) to see it in the CLI output (section "Business output (indexing check)"). Use [inspect-url-business-model.php](inspect-url-business-model.php) to access it in your own code via `$result->indexingCheckResult` (with URL normalizer applied before the API call).
+
+### URL normalization
+
+[url-normalization.php](url-normalization.php) demonstrates `UrlNormalizer` and `UrlNormalizationRules`: fragment removal, trailing slash (preserve/add/remove), stripping `utm_*` and `gclid`. Run `php examples/url-normalization.php` for the standalone demo; add `--api` and set `GOOGLE_CREDENTIALS_PATH` to call `inspectUrl()` with the normalizer.
 
 ## Direct CLI invocation
 

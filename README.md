@@ -19,6 +19,8 @@ A modern PHP wrapper for the Google Search Console API, providing typed DTOs, cl
 
 - **URL Inspection** – Index status, verdict, coverage state, mobile usability; optional **business output model** (primary status INDEXED/NOT_INDEXED/UNKNOWN, confidence, reason codes, source type authoritative/heuristic)
 - **Operating mode** – `strict` (default: never INDEXED high without authoritative data) or `best-effort` (allows heuristic INDEXED with HEURISTIC_ONLY when inconclusive)
+- **URL normalization** – Optional normalizer for API calls: remove fragment, trailing slash (preserve/add/remove), strip `utm_*` and `gclid`. Configurable via `UrlNormalizationRules`; use normalized URLs for `inspectUrl` and `requestIndexing` (e.g. batch comparison and deduplication)
+- **Request Indexing** – Submit URL notifications (URL_UPDATED / URL_DELETED) via the Google Indexing API
 
 ## Installation
 
@@ -119,6 +121,42 @@ if ($inspection->indexingCheckResult !== null) {
 }
 ```
 
+### Request Indexing
+
+Requests indexing (or removal) for a URL via the Google Indexing API.
+
+```php
+use Pekral\GoogleConsole\Enum\IndexingNotificationType;
+
+$result = $console->requestIndexing(
+    url: 'https://example.com/new-article',
+    type: IndexingNotificationType::URL_UPDATED  // or URL_DELETED
+);
+
+echo 'URL: ' . $result->url . PHP_EOL;
+echo 'Type: ' . $result->type->value . PHP_EOL;
+echo 'Notify time: ' . ($result->notifyTime?->format('c') ?? 'N/A') . PHP_EOL;
+```
+
+### URL normalization (optional)
+
+To normalize URLs before API calls (remove fragment, strip `utm_*`/`gclid`, optional trailing slash rules), pass an `UrlNormalizer` when creating the console:
+
+```php
+use Pekral\GoogleConsole\GoogleConsole;
+use Pekral\GoogleConsole\UrlNormalizer\UrlNormalizer;
+use Pekral\GoogleConsole\UrlNormalizer\UrlNormalizationRules;
+
+$normalizer = new UrlNormalizer(UrlNormalizationRules::forApiCalls());
+$console = new GoogleConsole($client, urlNormalizer: $normalizer);
+
+// inspectUrl() and requestIndexing() will receive normalized URLs
+$console->inspectUrl('https://example.com/', 'https://example.com/page?utm_source=google#section');
+// API is called with: https://example.com/page
+```
+
+Use `UrlNormalizationRules::defaults()` for fragment-only removal, or construct custom rules (trailing slash: `preserve` / `add` / `remove`; `stripUtmParams`, `stripGclid`).
+
 ## CLI Commands
 
 The package includes ready-to-use Symfony Console commands:
@@ -141,6 +179,12 @@ bin/pekral-google inspect-url https://example.com/ https://example.com/page --cr
 
 # JSON output
 bin/pekral-google inspect-url https://example.com/ https://example.com/page --credentials=/path/to/credentials.json --json
+
+# Request indexing for a URL
+bin/pekral-google request-indexing https://example.com/new-page --credentials=/path/to/credentials.json
+
+# Request URL removal from the index
+bin/pekral-google request-indexing https://example.com/removed-page --credentials=/path/to/credentials.json --delete
 ```
 
 ## Error Handling

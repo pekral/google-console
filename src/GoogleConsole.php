@@ -31,6 +31,7 @@ use Pekral\GoogleConsole\Enum\OperatingMode;
 use Pekral\GoogleConsole\Exception\GoogleConsoleFailure;
 use Pekral\GoogleConsole\Factory\GoogleClientFactory;
 use Pekral\GoogleConsole\Helper\TypeHelper;
+use Pekral\GoogleConsole\UrlNormalizer\UrlNormalizer;
 use Pekral\GoogleConsole\Validator\DataValidator;
 use Throwable;
 
@@ -51,6 +52,7 @@ final class GoogleConsole implements ConsoleContract
         private readonly UrlInspectionDataBuilder $urlInspectionDataBuilder = new UrlInspectionDataBuilder(),
         private readonly RequestDataBuilder $requestDataBuilder = new RequestDataBuilder(),
         private readonly DataValidator $dataValidator = new DataValidator(),
+        private readonly ?UrlNormalizer $urlNormalizer = null,
     ) {
     }
 
@@ -143,6 +145,8 @@ final class GoogleConsole implements ConsoleContract
      */
     public function inspectUrl(string $siteUrl, string $inspectionUrl, ?OperatingMode $operatingMode = null): UrlInspectionResult
     {
+        $inspectionUrl = $this->normalizeUrlIfConfigured($inspectionUrl);
+
         $request = new InspectUrlIndexRequest();
         $request->setInspectionUrl($inspectionUrl);
         $request->setSiteUrl($siteUrl);
@@ -203,6 +207,8 @@ final class GoogleConsole implements ConsoleContract
      */
     public function requestIndexing(string $url, IndexingNotificationType $type = IndexingNotificationType::URL_UPDATED): IndexingResult
     {
+        $url = $this->normalizeUrlIfConfigured($url);
+
         $endpoint = 'https://indexing.googleapis.com/v3/urlNotifications:publish';
 
         $body = json_encode([
@@ -247,6 +253,15 @@ final class GoogleConsole implements ConsoleContract
         $this->searchConsoleService ??= new SearchConsoleService($this->client);
 
         return $this->searchConsoleService;
+    }
+
+    private function normalizeUrlIfConfigured(string $url): string
+    {
+        if ($this->urlNormalizer === null) {
+            return $url;
+        }
+
+        return $this->urlNormalizer->normalize($url);
     }
 
     private function formatApiError(Exception $e, string $context): string

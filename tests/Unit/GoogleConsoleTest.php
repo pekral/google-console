@@ -6,6 +6,7 @@ use Google\Client;
 use Google\Service\Exception as GoogleServiceException;
 use Google\Service\SearchConsole as SearchConsoleService;
 use Google\Service\SearchConsole\IndexStatusInspectionResult;
+use Google\Service\SearchConsole\InspectUrlIndexRequest;
 use Google\Service\SearchConsole\InspectUrlIndexResponse;
 use Google\Service\SearchConsole\MobileUsabilityInspectionResult;
 use Google\Service\SearchConsole\UrlInspectionResult as GoogleUrlInspectionResult;
@@ -25,6 +26,8 @@ use Pekral\GoogleConsole\Enum\IndexingNotificationType;
 use Pekral\GoogleConsole\Exception\GoogleConsoleFailure;
 use Pekral\GoogleConsole\Factory\GoogleClientFactory;
 use Pekral\GoogleConsole\GoogleConsole;
+use Pekral\GoogleConsole\UrlNormalizer\UrlNormalizationRules;
+use Pekral\GoogleConsole\UrlNormalizer\UrlNormalizer;
 
 function createTestCredentialsFile(): string
 {
@@ -341,6 +344,55 @@ describe(GoogleConsole::class, function (): void {
 
         $console->inspectUrl('https://example.com/', 'https://example.com/page');
     })->throws(GoogleConsoleFailure::class, 'URL inspection failed');
+
+    it('passes normalized inspection url to api when url normalizer is configured', function (): void {
+        $tempFile = createTestCredentialsFile();
+        $config = GoogleConfig::fromCredentialsPath($tempFile);
+        $client = new GoogleClientFactory()->create($config);
+        $normalizer = new UrlNormalizer(UrlNormalizationRules::forApiCalls());
+        $console = new GoogleConsole($client, urlNormalizer: $normalizer);
+        unlink($tempFile);
+
+        $indexStatus = Mockery::mock(IndexStatusInspectionResult::class);
+        $indexStatus->shouldReceive('getVerdict')->andReturn('PASS');
+        $indexStatus->shouldReceive('getCoverageState')->andReturn('Submitted and indexed');
+        $indexStatus->shouldReceive('getRobotsTxtState')->andReturn('ALLOWED');
+        $indexStatus->shouldReceive('getIndexingState')->andReturn('INDEXING_ALLOWED');
+        $indexStatus->shouldReceive('getLastCrawlTime')->andReturn(null);
+        $indexStatus->shouldReceive('getPageFetchState')->andReturn('SUCCESSFUL');
+        $indexStatus->shouldReceive('getCrawledAs')->andReturn('MOBILE');
+        $indexStatus->shouldReceive('getGoogleCanonical')->andReturn('https://example.com/page');
+        $indexStatus->shouldReceive('getUserCanonical')->andReturn('https://example.com/page');
+
+        $mobileUsability = Mockery::mock(MobileUsabilityInspectionResult::class);
+        $mobileUsability->shouldReceive('getVerdict')->andReturn('PASS');
+        $mobileUsability->shouldReceive('getIssues')->andReturn([]);
+
+        $inspectionResult = Mockery::mock(GoogleUrlInspectionResult::class);
+        $inspectionResult->shouldReceive('getInspectionResultLink')->andReturn('');
+        $inspectionResult->shouldReceive('getIndexStatusResult')->andReturn($indexStatus);
+        $inspectionResult->shouldReceive('getMobileUsabilityResult')->andReturn($mobileUsability);
+
+        $inspectResponse = Mockery::mock(InspectUrlIndexResponse::class);
+        $inspectResponse->shouldReceive('getInspectionResult')->andReturn($inspectionResult);
+
+        $urlInspectionResource = Mockery::mock(SearchConsoleService\Resource\UrlInspectionIndex::class);
+        $urlInspectionResource->shouldReceive('inspect')
+            ->with(Mockery::on(static fn (InspectUrlIndexRequest $request): bool => $request->getInspectionUrl() === 'https://example.com/page'))
+            ->andReturn($inspectResponse);
+
+        $searchConsoleService = Mockery::mock(SearchConsoleService::class);
+        $searchConsoleService->urlInspection_index = $urlInspectionResource;
+
+        $reflection = new ReflectionClass($console);
+        $property = $reflection->getProperty('searchConsoleService');
+        $property->setValue($console, $searchConsoleService);
+
+        $result = $console->inspectUrl('https://example.com/', 'https://example.com/page#section?utm_source=google&gclid=abc');
+
+        expect($result)->toBeInstanceOf(UrlInspectionResult::class)
+            ->and($result->verdict)->toBe('PASS');
+    });
 
     it('initializes webmasters service lazily', function (): void {
         $console = createGoogleConsole();

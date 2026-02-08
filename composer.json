@@ -90,7 +90,8 @@
             "php examples/search-analytics.php",
             "php examples/inspect-url.php",
             "php examples/inspect-url-business-model.php",
-            "php examples/request-indexing.php"
+            "php examples/request-indexing.php",
+            "php examples/url-normalization.php"
         ],
         "fix": "composer run composer-normalize-fix && composer run rector-fix && composer run pint-fix && composer run phpcs-fix || true",
         "phpcs-check": "vendor/bin/phpcs --standard=ruleset.xml src/ tests/ examples/",
