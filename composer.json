@@ -30,23 +30,23 @@
         "google/apiclient": "^2.19"
     },
     "require-dev": {
-        "ergebnis/composer-normalize": "^2.48.2",
+        "ergebnis/composer-normalize": "^2.49.0",
         "laravel/pint": "^1.27.0",
         "mockery/mockery": "^1.6.12",
         "nunomaduro/termwind": "^2.3.3",
         "pekral/cursor-rules": "dev-master",
         "pekral/phpcs-rules": "dev-master",
         "pekral/rector-rules": "dev-master",
-        "pestphp/pest": "^4.3.1",
+        "pestphp/pest": "^4.3.2",
         "pestphp/pest-plugin-type-coverage": "^4.0.3",
         "phpstan/extension-installer": "^1.4.3",
-        "phpstan/phpstan": "^2.1.37",
+        "phpstan/phpstan": "^2.1.38",
         "phpstan/phpstan-deprecation-rules": "^2.0.3",
         "phpstan/phpstan-mockery": "^2.0",
         "phpstan/phpstan-phpunit": "^2.0.12",
         "roave/security-advisories": "dev-latest",
         "squizlabs/php_codesniffer": ">=4.0.1",
-        "symfony/console": "^7.4.3"
+        "symfony/console": "^7.4.4"
     },
     "minimum-stability": "dev",
     "prefer-stable": true,

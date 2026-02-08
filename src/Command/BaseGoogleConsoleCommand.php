@@ -66,7 +66,7 @@ abstract class BaseGoogleConsoleCommand extends Command
      */
     protected function outputJson(OutputInterface $output, array $data): void
     {
-        $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
 
         // @codeCoverageIgnoreStart
         if ($json === false) {
