@@ -7,6 +7,7 @@ namespace Pekral\GoogleConsole;
 use DateTimeInterface;
 use Google\Client;
 use Pekral\GoogleConsole\DTO\BatchUrlInspectionResult;
+use Pekral\GoogleConsole\DTO\IndexingComparisonResult;
 use Pekral\GoogleConsole\DTO\IndexingResult;
 use Pekral\GoogleConsole\DTO\Site;
 use Pekral\GoogleConsole\DTO\UrlInspectionResult;
@@ -78,6 +79,11 @@ interface ConsoleContract
         array $criticalUrls = [],
         ?OperatingMode $operatingMode = null,
     ): BatchUrlInspectionResult;
+
+    /**
+     * Compares two indexing runs (e.g. previous vs current) and returns changes, deltas and dominant reason codes.
+     */
+    public function compareIndexingRuns(BatchUrlInspectionResult $previous, BatchUrlInspectionResult $current): IndexingComparisonResult;
 
     /**
      * Retrieves information about a specific site.

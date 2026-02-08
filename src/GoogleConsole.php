@@ -24,6 +24,7 @@ use Pekral\GoogleConsole\DataBuilder\RequestDataBuilder;
 use Pekral\GoogleConsole\DataBuilder\SiteDataBuilder;
 use Pekral\GoogleConsole\DataBuilder\UrlInspectionDataBuilder;
 use Pekral\GoogleConsole\DTO\BatchUrlInspectionResult;
+use Pekral\GoogleConsole\DTO\IndexingComparisonResult;
 use Pekral\GoogleConsole\DTO\IndexingResult;
 use Pekral\GoogleConsole\DTO\PerUrlInspectionResult;
 use Pekral\GoogleConsole\DTO\SearchAnalyticsRow;
@@ -59,6 +60,7 @@ final class GoogleConsole implements ConsoleContract
         private readonly DataValidator $dataValidator = new DataValidator(),
         private readonly ?UrlNormalizer $urlNormalizer = null,
         private readonly BatchAggregationBuilder $batchAggregationBuilder = new BatchAggregationBuilder(),
+        private readonly IndexingRunComparator $indexingRunComparator = new IndexingRunComparator(),
     ) {
     }
 
@@ -215,6 +217,14 @@ final class GoogleConsole implements ConsoleContract
             criticalUrlResults: $criticalUrlResults,
             batchVerdict: $batchVerdict,
         );
+    }
+
+    /**
+     * Compares two indexing runs (e.g. previous vs current) and returns changes, deltas and dominant reason codes.
+     */
+    public function compareIndexingRuns(BatchUrlInspectionResult $previous, BatchUrlInspectionResult $current): IndexingComparisonResult
+    {
+        return $this->indexingRunComparator->compare($previous->perUrlResults, $current->perUrlResults);
     }
 
     /**

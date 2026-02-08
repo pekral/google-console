@@ -19,6 +19,7 @@ A modern PHP wrapper for the Google Search Console API, providing typed DTOs, cl
 
 - **URL Inspection** – Index status, verdict, coverage state, mobile usability; optional **business output model** (primary status INDEXED/NOT_INDEXED/UNKNOWN, confidence, reason codes, source type authoritative/heuristic)
 - **Batch URL Inspection** – Inspect multiple URLs in one call; get per-URL results, aggregation (INDEXED/NOT_INDEXED/UNKNOWN counts, reason code overview), and optional **critical URLs** with batch verdict (FAIL if any critical URL is NOT_INDEXED)
+- **Indexing run comparison** – Compare two indexing runs (e.g. previous vs current); get list of changes (NEWLY_INDEXED, DROPPED_FROM_INDEX, BECAME_UNKNOWN, RECOVERED_FROM_UNKNOWN), delta counts by status, and dominant reason codes from the current run
 - **Operating mode** – `strict` (default: never INDEXED high without authoritative data) or `best-effort` (allows heuristic INDEXED with HEURISTIC_ONLY when inconclusive)
 - **URL normalization** – Optional normalizer for API calls: remove fragment, trailing slash (preserve/add/remove), strip `utm_*` and `gclid`. Configurable via `UrlNormalizationRules`; use normalized URLs for `inspectUrl` and `requestIndexing` (e.g. batch comparison and deduplication)
 - **Request Indexing** – Submit URL notifications (URL_UPDATED / URL_DELETED) via the Google Indexing API
@@ -157,6 +158,34 @@ foreach ($result->criticalUrlResults as $perUrl) {
 
 For large URL sets, consider chunking or running in a background job to avoid timeouts and API rate limits.
 
+### Compare Indexing Runs
+
+Compares two indexing runs (e.g. previous vs current) and returns changes, deltas and dominant reason codes. Only URLs present in **both** runs are compared.
+
+```php
+$previous = $console->inspectBatchUrls($siteUrl, $urls, $criticalUrls);
+// ... later, after some time or after changes ...
+$current = $console->inspectBatchUrls($siteUrl, $urls, $criticalUrls);
+
+$comparison = $console->compareIndexingRuns($previous, $current);
+
+echo 'Changes: ' . count($comparison->changes) . PHP_EOL;
+echo 'Indexed delta: ' . $comparison->indexedDelta . PHP_EOL;
+echo 'Not indexed delta: ' . $comparison->notIndexedDelta . PHP_EOL;
+echo 'Unknown delta: ' . $comparison->unknownDelta . PHP_EOL;
+
+foreach ($comparison->changes as $change) {
+    echo $change->url . ' => ' . $change->changeType->value;
+    echo ' (' . $change->previousStatus->value . ' -> ' . $change->currentStatus->value . ')' . PHP_EOL;
+}
+
+foreach ($comparison->dominantReasonCodes as $code => $count) {
+    echo '  ' . $code . ': ' . $count . PHP_EOL;
+}
+```
+
+Change types: `NEWLY_INDEXED`, `DROPPED_FROM_INDEX`, `BECAME_UNKNOWN`, `RECOVERED_FROM_UNKNOWN`.
+
 ### Request Indexing
 
 Requests indexing (or removal) for a URL via the Google Indexing API.
@@ -223,11 +252,12 @@ bin/pekral-google request-indexing https://example.com/new-page --credentials=/p
 bin/pekral-google request-indexing https://example.com/removed-page --credentials=/path/to/credentials.json --delete
 ```
 
-**Batch URL inspection** (programmatic example, no CLI command):
+**Batch URL inspection** and **indexing run comparison** (programmatic examples, no CLI command):
 
 ```bash
 php examples/inspect-batch-urls.php
 php examples/inspect-batch-urls.php --critical=https://example.com/,https://example.com/key-page
+php examples/compare-indexing-runs.php
 ```
 
 ## Error Handling
