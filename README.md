@@ -18,6 +18,7 @@ A modern PHP wrapper for the Google Search Console API, providing typed DTOs, cl
 ## Features
 
 - **URL Inspection** – Index status, verdict, coverage state, mobile usability; optional **business output model** (primary status INDEXED/NOT_INDEXED/UNKNOWN, confidence, reason codes, source type authoritative/heuristic)
+- **Batch URL Inspection** – Inspect multiple URLs in one call; get per-URL results, aggregation (INDEXED/NOT_INDEXED/UNKNOWN counts, reason code overview), and optional **critical URLs** with batch verdict (FAIL if any critical URL is NOT_INDEXED)
 - **Operating mode** – `strict` (default: never INDEXED high without authoritative data) or `best-effort` (allows heuristic INDEXED with HEURISTIC_ONLY when inconclusive)
 - **URL normalization** – Optional normalizer for API calls: remove fragment, trailing slash (preserve/add/remove), strip `utm_*` and `gclid`. Configurable via `UrlNormalizationRules`; use normalized URLs for `inspectUrl` and `requestIndexing` (e.g. batch comparison and deduplication)
 - **Request Indexing** – Submit URL notifications (URL_UPDATED / URL_DELETED) via the Google Indexing API
@@ -121,6 +122,41 @@ if ($inspection->indexingCheckResult !== null) {
 }
 ```
 
+### Batch URL Inspection
+
+Inspects multiple URLs and returns per-URL results plus aggregation. You can mark URLs as **critical**; the batch verdict is **FAIL** if any critical URL is NOT_INDEXED.
+
+```php
+$result = $console->inspectBatchUrls(
+    siteUrl: 'https://example.com/',
+    urls: [
+        'https://example.com/',
+        'https://example.com/important-page',
+        'https://example.com/blog',
+    ],
+    criticalUrls: [
+        'https://example.com/',
+        'https://example.com/important-page',
+    ],
+    operatingMode: null  // optional: OperatingMode::STRICT or OperatingMode::BEST_EFFORT
+);
+
+echo 'Batch verdict: ' . $result->batchVerdict->value . PHP_EOL;  // PASS | FAIL
+echo 'Indexed: ' . $result->aggregation->indexedCount . PHP_EOL;
+echo 'Not indexed: ' . $result->aggregation->notIndexedCount . PHP_EOL;
+echo 'Unknown: ' . $result->aggregation->unknownCount . PHP_EOL;
+
+foreach ($result->perUrlResults as $url => $perUrl) {
+    echo $url . ' => ' . $perUrl->status->value . PHP_EOL;  // INDEXED | NOT_INDEXED | UNKNOWN
+}
+
+foreach ($result->criticalUrlResults as $perUrl) {
+    echo 'Critical: ' . $perUrl->url . ' => ' . $perUrl->status->value . PHP_EOL;
+}
+```
+
+For large URL sets, consider chunking or running in a background job to avoid timeouts and API rate limits.
+
 ### Request Indexing
 
 Requests indexing (or removal) for a URL via the Google Indexing API.
@@ -185,6 +221,13 @@ bin/pekral-google request-indexing https://example.com/new-page --credentials=/p
 
 # Request URL removal from the index
 bin/pekral-google request-indexing https://example.com/removed-page --credentials=/path/to/credentials.json --delete
+```
+
+**Batch URL inspection** (programmatic example, no CLI command):
+
+```bash
+php examples/inspect-batch-urls.php
+php examples/inspect-batch-urls.php --critical=https://example.com/,https://example.com/key-page
 ```
 
 ## Error Handling
