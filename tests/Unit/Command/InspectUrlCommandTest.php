@@ -4,7 +4,12 @@ declare(strict_types = 1);
 
 use Pekral\GoogleConsole\Command\InspectUrlCommand;
 use Pekral\GoogleConsole\ConsoleContract;
+use Pekral\GoogleConsole\DTO\IndexingCheckResult;
 use Pekral\GoogleConsole\DTO\UrlInspectionResult;
+use Pekral\GoogleConsole\Enum\IndexingCheckConfidence;
+use Pekral\GoogleConsole\Enum\IndexingCheckReasonCode;
+use Pekral\GoogleConsole\Enum\IndexingCheckSourceType;
+use Pekral\GoogleConsole\Enum\IndexingCheckStatus;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 
@@ -212,5 +217,147 @@ describe(InspectUrlCommand::class, function (): void {
             ->and($decoded['verdict'])->toBe('PASS')
             ->and($decoded['isIndexed'])->toBeTrue()
             ->and($decoded['isMobileFriendly'])->toBeTrue();
+    });
+
+    it('displays business output section when indexing check result is present', function (): void {
+        $indexingCheckResult = new IndexingCheckResult(
+            primaryStatus: IndexingCheckStatus::INDEXED,
+            confidence: IndexingCheckConfidence::HIGH,
+            reasonCodes: [IndexingCheckReasonCode::INDEXED_CONFIRMED],
+            checkedAt: new DateTimeImmutable('2024-06-01 12:00:00'),
+            sourceType: IndexingCheckSourceType::AUTHORITATIVE,
+        );
+
+        $result = new UrlInspectionResult(
+            inspectionResultLink: '',
+            indexStatusResult: 'PASS',
+            verdict: 'PASS',
+            coverageState: 'Submitted and indexed',
+            robotsTxtState: 'ALLOWED',
+            indexingState: 'INDEXING_ALLOWED',
+            lastCrawlTime: null,
+            pageFetchState: 'SUCCESSFUL',
+            crawledAs: null,
+            googleCanonical: null,
+            userCanonical: null,
+            isMobileFriendly: true,
+            mobileUsabilityIssue: null,
+            indexingCheckResult: $indexingCheckResult,
+        );
+
+        $googleConsole = Mockery::mock(ConsoleContract::class);
+        $googleConsole->shouldReceive('inspectUrl')->andReturn($result);
+
+        $command = new InspectUrlCommand();
+        $command->setGoogleConsole($googleConsole);
+
+        $tester = new CommandTester($command);
+        $tester->execute([
+            'site-url' => 'https://example.com/',
+            'inspection-url' => 'https://example.com/page',
+            '--credentials' => '/path/to/credentials.json',
+        ]);
+
+        $display = $tester->getDisplay();
+        expect($tester->getStatusCode())->toBe(Command::SUCCESS)
+            ->and($display)->toContain('Business output (indexing check)')
+            ->and($display)->toContain('INDEXED')
+            ->and($display)->toContain('high')
+            ->and($display)->toContain('INDEXED_CONFIRMED')
+            ->and($display)->toContain('2024-06-01 12:00:00')
+            ->and($display)->toContain('authoritative');
+    });
+
+    it('displays business output with NOT_INDEXED primary status', function (): void {
+        $indexingCheckResult = new IndexingCheckResult(
+            primaryStatus: IndexingCheckStatus::NOT_INDEXED,
+            confidence: IndexingCheckConfidence::HIGH,
+            reasonCodes: [IndexingCheckReasonCode::NOT_INDEXED_CONFIRMED, IndexingCheckReasonCode::META_NOINDEX],
+            checkedAt: new DateTimeImmutable('2024-06-01 12:00:00'),
+            sourceType: IndexingCheckSourceType::AUTHORITATIVE,
+        );
+
+        $result = new UrlInspectionResult(
+            inspectionResultLink: '',
+            indexStatusResult: 'FAIL',
+            verdict: 'FAIL',
+            coverageState: '',
+            robotsTxtState: 'ALLOWED',
+            indexingState: 'BLOCKED_BY_META_TAG',
+            lastCrawlTime: null,
+            pageFetchState: 'SUCCESSFUL',
+            crawledAs: null,
+            googleCanonical: null,
+            userCanonical: null,
+            isMobileFriendly: true,
+            mobileUsabilityIssue: null,
+            indexingCheckResult: $indexingCheckResult,
+        );
+
+        $googleConsole = Mockery::mock(ConsoleContract::class);
+        $googleConsole->shouldReceive('inspectUrl')->andReturn($result);
+
+        $command = new InspectUrlCommand();
+        $command->setGoogleConsole($googleConsole);
+
+        $tester = new CommandTester($command);
+        $tester->execute([
+            'site-url' => 'https://example.com/',
+            'inspection-url' => 'https://example.com/page',
+            '--credentials' => '/path/to/credentials.json',
+        ]);
+
+        $display = $tester->getDisplay();
+        expect($tester->getStatusCode())->toBe(Command::SUCCESS)
+            ->and($display)->toContain('Business output (indexing check)')
+            ->and($display)->toContain('NOT_INDEXED')
+            ->and($display)->toContain('META_NOINDEX');
+    });
+
+    it('displays business output with UNKNOWN primary status', function (): void {
+        $indexingCheckResult = new IndexingCheckResult(
+            primaryStatus: IndexingCheckStatus::UNKNOWN,
+            confidence: IndexingCheckConfidence::MEDIUM,
+            reasonCodes: [IndexingCheckReasonCode::INSUFFICIENT_DATA],
+            checkedAt: new DateTimeImmutable('2024-06-01 12:00:00'),
+            sourceType: IndexingCheckSourceType::AUTHORITATIVE,
+        );
+
+        $result = new UrlInspectionResult(
+            inspectionResultLink: '',
+            indexStatusResult: 'VERDICT_UNSPECIFIED',
+            verdict: 'VERDICT_UNSPECIFIED',
+            coverageState: '',
+            robotsTxtState: 'ALLOWED',
+            indexingState: 'INDEXING_ALLOWED',
+            lastCrawlTime: null,
+            pageFetchState: 'SUCCESSFUL',
+            crawledAs: null,
+            googleCanonical: null,
+            userCanonical: null,
+            isMobileFriendly: true,
+            mobileUsabilityIssue: null,
+            indexingCheckResult: $indexingCheckResult,
+        );
+
+        $googleConsole = Mockery::mock(ConsoleContract::class);
+        $googleConsole->shouldReceive('inspectUrl')->andReturn($result);
+
+        $command = new InspectUrlCommand();
+        $command->setGoogleConsole($googleConsole);
+
+        $tester = new CommandTester($command);
+        $tester->execute([
+            'site-url' => 'https://example.com/',
+            'inspection-url' => 'https://example.com/page',
+            '--credentials' => '/path/to/credentials.json',
+        ]);
+
+        $display = $tester->getDisplay();
+        expect($tester->getStatusCode())->toBe(Command::SUCCESS)
+            ->and($display)->toContain('Business output (indexing check)')
+            ->and($display)->toContain('UNKNOWN')
+            ->and($display)->toContain('medium')
+            ->and($display)->toContain('INSUFFICIENT_DATA');
     });
 });

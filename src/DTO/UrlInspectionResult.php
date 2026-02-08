@@ -23,6 +23,7 @@ final readonly class UrlInspectionResult
         public ?string $userCanonical,
         public bool $isMobileFriendly,
         public ?string $mobileUsabilityIssue,
+        public ?IndexingCheckResult $indexingCheckResult = null,
     ) {
     }
 
@@ -45,7 +46,8 @@ final readonly class UrlInspectionResult
      *         issues?: array<array{
      *             issueType?: string
      *         }>
-     *     }
+     *     },
+     *     indexingCheckResult?: \Pekral\GoogleConsole\DTO\IndexingCheckResult
      * } $data
      */
     public static function fromApiResponse(array $data): self
@@ -79,6 +81,7 @@ final readonly class UrlInspectionResult
             userCanonical: $indexStatus['userCanonical'] ?? null,
             isMobileFriendly: ($mobileUsability['verdict'] ?? '') === 'PASS',
             mobileUsabilityIssue: $mobileIssue,
+            indexingCheckResult: $data['indexingCheckResult'] ?? null,
         );
     }
 
@@ -113,12 +116,13 @@ final readonly class UrlInspectionResult
      *     mobileUsabilityIssue: ?string,
      *     isIndexed: bool,
      *     isIndexable: bool,
-     *     isCrawlable: bool
+     *     isCrawlable: bool,
+     *     indexingCheckResult?: array{primaryStatus: string, confidence: string, reason_codes: list<string>, checked_at: string, source_type: string}
      * }
      */
     public function toArray(): array
     {
-        return [
+        $array = [
             'coverageState' => $this->coverageState,
             'crawledAs' => $this->crawledAs,
             'googleCanonical' => $this->googleCanonical,
@@ -135,6 +139,12 @@ final readonly class UrlInspectionResult
             'userCanonical' => $this->userCanonical,
             'verdict' => $this->verdict,
         ];
+
+        if ($this->indexingCheckResult !== null) {
+            $array['indexingCheckResult'] = $this->indexingCheckResult->toArray();
+        }
+
+        return $array;
     }
 
 }

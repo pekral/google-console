@@ -7,6 +7,8 @@ use Google\Service\SearchConsole\MobileUsabilityInspectionResult;
 use Google\Service\SearchConsole\UrlInspectionResult as GoogleUrlInspectionResult;
 use Pekral\GoogleConsole\DataBuilder\UrlInspectionDataBuilder;
 use Pekral\GoogleConsole\DTO\UrlInspectionResult;
+use Pekral\GoogleConsole\Enum\IndexingCheckReasonCode;
+use Pekral\GoogleConsole\Enum\IndexingCheckStatus;
 
 describe(UrlInspectionDataBuilder::class, function (): void {
 
@@ -90,5 +92,34 @@ describe(UrlInspectionDataBuilder::class, function (): void {
 
         expect($result->isMobileFriendly)->toBeFalse()
             ->and($result->mobileUsabilityIssue)->toBe('TEXT_TOO_SMALL');
+    });
+
+    it('attaches indexing check result with INDEXED when verdict PASS and coverage indexed', function (): void {
+        $indexStatus = Mockery::mock(IndexStatusInspectionResult::class);
+        $indexStatus->shouldReceive('getVerdict')->andReturn('PASS');
+        $indexStatus->shouldReceive('getCoverageState')->andReturn('Submitted and indexed');
+        $indexStatus->shouldReceive('getRobotsTxtState')->andReturn('ALLOWED');
+        $indexStatus->shouldReceive('getIndexingState')->andReturn('INDEXING_ALLOWED');
+        $indexStatus->shouldReceive('getLastCrawlTime')->andReturn(null);
+        $indexStatus->shouldReceive('getPageFetchState')->andReturn('SUCCESSFUL');
+        $indexStatus->shouldReceive('getCrawledAs')->andReturn('');
+        $indexStatus->shouldReceive('getGoogleCanonical')->andReturn('');
+        $indexStatus->shouldReceive('getUserCanonical')->andReturn('');
+
+        $mobileUsability = Mockery::mock(MobileUsabilityInspectionResult::class);
+        $mobileUsability->shouldReceive('getVerdict')->andReturn('PASS');
+        $mobileUsability->shouldReceive('getIssues')->andReturn([]);
+
+        $googleResult = Mockery::mock(GoogleUrlInspectionResult::class);
+        $googleResult->shouldReceive('getInspectionResultLink')->andReturn('https://search.google.com/inspect');
+        $googleResult->shouldReceive('getIndexStatusResult')->andReturn($indexStatus);
+        $googleResult->shouldReceive('getMobileUsabilityResult')->andReturn($mobileUsability);
+
+        $builder = new UrlInspectionDataBuilder();
+        $result = $builder->fromGoogleResult($googleResult);
+
+        expect($result->indexingCheckResult)->not->toBeNull()
+            ->and($result->indexingCheckResult->primaryStatus)->toBe(IndexingCheckStatus::INDEXED)
+            ->and($result->indexingCheckResult->reasonCodes)->toContain(IndexingCheckReasonCode::INDEXED_CONFIRMED);
     });
 });
