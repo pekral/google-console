@@ -35,7 +35,9 @@ final class IndexingCheckResultDataBuilder
         IndexingCheckReasonCode::TIMEOUT,
     ];
 
-    public function __construct(private readonly IndexStatusToReasonCodesMapper $indexStatusToReasonCodesMapper = new IndexStatusToReasonCodesMapper()) {
+    public function __construct(
+        private readonly IndexStatusToReasonCodesDataBuilder $indexStatusToReasonCodesDataBuilder = new IndexStatusToReasonCodesDataBuilder(),
+    ) {
     }
 
     /**
@@ -62,7 +64,7 @@ final class IndexingCheckResultDataBuilder
             return $this->createUnknownLow($checkedAt);
         }
 
-        $mappedReasons = $this->indexStatusToReasonCodesMapper->map($indexStatus);
+        $mappedReasons = $this->indexStatusToReasonCodesDataBuilder->map($indexStatus);
         $hasBlockingReason = $this->hasAnyBlockingReason($mappedReasons);
 
         if ($hasBlockingReason) {

@@ -2,12 +2,12 @@
 
 declare(strict_types = 1);
 
-use Pekral\GoogleConsole\DataBuilder\IndexStatusToReasonCodesMapper;
+use Pekral\GoogleConsole\DataBuilder\IndexStatusToReasonCodesDataBuilder;
 use Pekral\GoogleConsole\Enum\IndexingCheckReasonCode;
 
-describe(IndexStatusToReasonCodesMapper::class, function (): void {
+describe(IndexStatusToReasonCodesDataBuilder::class, function (): void {
 
-    $mapper = new IndexStatusToReasonCodesMapper();
+    $mapper = new IndexStatusToReasonCodesDataBuilder();
 
     it('returns empty list for empty index status', function () use ($mapper): void {
         $result = $mapper->map([]);

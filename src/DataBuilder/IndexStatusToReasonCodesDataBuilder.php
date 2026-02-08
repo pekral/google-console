@@ -10,7 +10,7 @@ use Pekral\GoogleConsole\Enum\IndexingCheckReasonCode;
  * Maps URL Inspection API indexStatus fields to business reason codes
  * (Indexation & Coverage, Blocking & Rules, Detection Issues).
  */
-final class IndexStatusToReasonCodesMapper
+final class IndexStatusToReasonCodesDataBuilder
 {
 
     private const string ROBOTS_ALLOWED = 'ALLOWED';
