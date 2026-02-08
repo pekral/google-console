@@ -107,7 +107,7 @@ final class GoogleConsole implements ConsoleContract
         DateTimeInterface $startDate,
         DateTimeInterface $endDate,
         array $dimensions = ['query'],
-        int $rowLimit = 1000,
+        int $rowLimit = 1_000,
         int $startRow = 0,
     ): array {
         $this->dataValidator->validateDimensions($dimensions);

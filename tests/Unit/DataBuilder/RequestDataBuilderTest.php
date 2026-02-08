@@ -40,7 +40,7 @@ describe(RequestDataBuilder::class, function (): void {
             $startDate,
             $endDate,
             ['query'],
-            1000,
+            1_000,
             0,
         );
 
@@ -48,7 +48,7 @@ describe(RequestDataBuilder::class, function (): void {
             ->and($request->getStartDate())->toBe('2024-06-01')
             ->and($request->getEndDate())->toBe('2024-06-30')
             ->and($request->getDimensions())->toBe(['query'])
-            ->and($request->getRowLimit())->toBe(1000)
+            ->and($request->getRowLimit())->toBe(1_000)
             ->and($request->getStartRow())->toBe(0);
     });
 

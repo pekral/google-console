@@ -10,6 +10,7 @@ return static function (RectorConfig $rectorConfig): void {
     $rectorConfig->paths([
         __DIR__ . '/src',
         __DIR__ . '/tests',
+        __DIR__ . '/examples',
     ]);
 
     $rectorConfig->import(__DIR__ . '/vendor/pekral/rector-rules/rector.php');

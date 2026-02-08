@@ -10,7 +10,7 @@ describe(SearchAnalyticsRow::class, function (): void {
         $data = [
             'keys' => ['test query', 'https://example.com/page'],
             'clicks' => 100.0,
-            'impressions' => 1000.0,
+            'impressions' => 1_000.0,
             'ctr' => 0.1,
             'position' => 5.5,
         ];
@@ -19,7 +19,7 @@ describe(SearchAnalyticsRow::class, function (): void {
 
         expect($row->keys)->toBe(['query' => 'test query', 'page' => 'https://example.com/page'])
             ->and($row->clicks)->toBe(100.0)
-            ->and($row->impressions)->toBe(1000.0)
+            ->and($row->impressions)->toBe(1_000.0)
             ->and($row->ctr)->toBe(0.1)
             ->and($row->position)->toBe(5.5);
     });
@@ -124,7 +124,7 @@ describe(SearchAnalyticsRow::class, function (): void {
         $data = [
             'keys' => ['test query', 'https://example.com/', 'USA', 'DESKTOP'],
             'clicks' => 200.0,
-            'impressions' => 2000.0,
+            'impressions' => 2_000.0,
             'ctr' => 0.1,
             'position' => 1.5,
         ];
@@ -141,7 +141,7 @@ describe(SearchAnalyticsRow::class, function (): void {
         $data = [
             'keys' => ['test query'],
             'clicks' => 100.0,
-            'impressions' => 1000.0,
+            'impressions' => 1_000.0,
             'ctr' => 0.1,
             'position' => 5.5,
         ];
@@ -151,7 +151,7 @@ describe(SearchAnalyticsRow::class, function (): void {
 
         expect($array['keys'])->toBe(['query' => 'test query'])
             ->and($array['clicks'])->toBe(100.0)
-            ->and($array['impressions'])->toBe(1000.0)
+            ->and($array['impressions'])->toBe(1_000.0)
             ->and($array['ctr'])->toBe(0.1)
             ->and($array['position'])->toBe(5.5);
     });

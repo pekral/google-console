@@ -192,7 +192,7 @@ describe(GoogleConsole::class, function (): void {
         $row1 = Mockery::mock(ApiDataRow::class);
         $row1->shouldReceive('getKeys')->andReturn(['test query']);
         $row1->shouldReceive('getClicks')->andReturn(100.0);
-        $row1->shouldReceive('getImpressions')->andReturn(1000.0);
+        $row1->shouldReceive('getImpressions')->andReturn(1_000.0);
         $row1->shouldReceive('getCtr')->andReturn(0.1);
         $row1->shouldReceive('getPosition')->andReturn(5.5);
 

@@ -12,7 +12,7 @@ describe(SearchAnalyticsCommand::class, function (): void {
 
     it('displays search analytics data in table', function (): void {
         $rows = [
-            new SearchAnalyticsRow(['query' => 'test query'], 100.0, 1000.0, 0.1, 5.5),
+            new SearchAnalyticsRow(['query' => 'test query'], 100.0, 1_000.0, 0.1, 5.5),
             new SearchAnalyticsRow(['query' => 'another query'], 50.0, 500.0, 0.1, 3.0),
         ];
 
@@ -63,7 +63,7 @@ describe(SearchAnalyticsCommand::class, function (): void {
 
     it('supports multiple dimensions', function (): void {
         $rows = [
-            new SearchAnalyticsRow(['query' => 'test', 'page' => '/page1'], 100.0, 1000.0, 0.1, 5.5),
+            new SearchAnalyticsRow(['query' => 'test', 'page' => '/page1'], 100.0, 1_000.0, 0.1, 5.5),
         ];
 
         $googleConsole = Mockery::mock(ConsoleContract::class);
@@ -100,7 +100,7 @@ describe(SearchAnalyticsCommand::class, function (): void {
 
     it('formats CTR as percentage', function (): void {
         $rows = [
-            new SearchAnalyticsRow(['query' => 'test'], 100.0, 1000.0, 0.1234, 5.5),
+            new SearchAnalyticsRow(['query' => 'test'], 100.0, 1_000.0, 0.123_4, 5.5),
         ];
 
         $googleConsole = Mockery::mock(ConsoleContract::class);
@@ -120,7 +120,7 @@ describe(SearchAnalyticsCommand::class, function (): void {
 
     it('outputs json when json option is set', function (): void {
         $rows = [
-            new SearchAnalyticsRow(['query' => 'test query'], 100.0, 1000.0, 0.1, 5.5),
+            new SearchAnalyticsRow(['query' => 'test query'], 100.0, 1_000.0, 0.1, 5.5),
         ];
 
         $googleConsole = Mockery::mock(ConsoleContract::class);
