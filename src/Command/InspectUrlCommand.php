@@ -5,7 +5,9 @@ declare(strict_types = 1);
 namespace Pekral\GoogleConsole\Command;
 
 use Pekral\GoogleConsole\Command\Output\ConsoleOutput;
+use Pekral\GoogleConsole\DTO\IndexingCheckResult;
 use Pekral\GoogleConsole\DTO\UrlInspectionResult;
+use Pekral\GoogleConsole\Enum\IndexingCheckReasonCode;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -46,10 +48,32 @@ final class InspectUrlCommand extends BaseGoogleConsoleCommand
         $out->header('Google Search Console - URL Inspection');
 
         $this->displayIndexingStatus($out, $result);
+
+        if ($result->indexingCheckResult !== null) {
+            $this->displayIndexingCheckResult($out, $result->indexingCheckResult);
+        }
+
         $this->displayCanonicalUrls($out, $result);
         $this->displayMobileUsability($out, $result);
 
         return self::SUCCESS;
+    }
+
+    private function displayIndexingCheckResult(ConsoleOutput $out, IndexingCheckResult $check): void
+    {
+        $statusColor = match ($check->primaryStatus->value) {
+            'INDEXED' => 'green-400',
+            'NOT_INDEXED' => 'red-400',
+            'UNKNOWN' => 'yellow-400',
+        };
+        $reasonCodesList = implode(', ', array_map(static fn (IndexingCheckReasonCode $code): string => $code->value, $check->reasonCodes));
+
+        $out->section('Business output (indexing check)');
+        $out->keyValue('Primary status', $check->primaryStatus->value, $statusColor);
+        $out->keyValue('Confidence', $check->confidence->value);
+        $out->keyValue('Reason codes', $reasonCodesList !== '' ? $reasonCodesList : 'none');
+        $out->keyValue('Checked at', $check->checkedAt->format('Y-m-d H:i:s'));
+        $out->keyValue('Source type', $check->sourceType->value);
     }
 
     private function displayIndexingStatus(ConsoleOutput $out, UrlInspectionResult $result): void

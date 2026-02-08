@@ -9,13 +9,20 @@ use Google\Service\SearchConsole\MobileUsabilityInspectionResult;
 use Google\Service\SearchConsole\UrlInspectionResult as GoogleUrlInspectionResult;
 use Pekral\GoogleConsole\DTO\UrlInspectionResult;
 
-final class UrlInspectionDataBuilder
+final readonly class UrlInspectionDataBuilder
 {
+
+    public function __construct(private IndexingCheckResultDataBuilder $indexingCheckResultDataBuilder = new IndexingCheckResultDataBuilder()) {
+    }
 
     public function fromGoogleResult(GoogleUrlInspectionResult $result): UrlInspectionResult
     {
+        $indexStatusData = $this->buildIndexStatusData($result->getIndexStatusResult());
+        $indexingCheckResult = $this->indexingCheckResultDataBuilder->fromIndexStatusData($indexStatusData);
+
         return UrlInspectionResult::fromApiResponse([
-            'indexStatusResult' => $this->buildIndexStatusData($result->getIndexStatusResult()),
+            'indexingCheckResult' => $indexingCheckResult,
+            'indexStatusResult' => $indexStatusData,
             'inspectionResultLink' => is_string($result->getInspectionResultLink()) ? $result->getInspectionResultLink() : '',
             'mobileUsabilityResult' => $this->buildMobileUsabilityData($this->getMobileUsability($result)),
         ]);

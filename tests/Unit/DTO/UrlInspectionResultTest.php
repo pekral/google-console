@@ -2,7 +2,12 @@
 
 declare(strict_types = 1);
 
+use Pekral\GoogleConsole\DTO\IndexingCheckResult;
 use Pekral\GoogleConsole\DTO\UrlInspectionResult;
+use Pekral\GoogleConsole\Enum\IndexingCheckConfidence;
+use Pekral\GoogleConsole\Enum\IndexingCheckReasonCode;
+use Pekral\GoogleConsole\Enum\IndexingCheckSourceType;
+use Pekral\GoogleConsole\Enum\IndexingCheckStatus;
 
 describe(UrlInspectionResult::class, function (): void {
 
@@ -186,5 +191,28 @@ describe(UrlInspectionResult::class, function (): void {
             ->and($array['isIndexed'])->toBeTrue()
             ->and($array['isIndexable'])->toBeTrue()
             ->and($array['isCrawlable'])->toBeTrue();
+    });
+
+    it('includes indexingCheckResult in toArray when present', function (): void {
+        $checkedAt = new DateTimeImmutable('2024-01-15T10:30:00+00:00');
+        $indexingCheckResult = new IndexingCheckResult(
+            primaryStatus: IndexingCheckStatus::INDEXED,
+            confidence: IndexingCheckConfidence::HIGH,
+            reasonCodes: [IndexingCheckReasonCode::INDEXED_CONFIRMED],
+            checkedAt: $checkedAt,
+            sourceType: IndexingCheckSourceType::AUTHORITATIVE,
+        );
+
+        $result = UrlInspectionResult::fromApiResponse([
+            'indexStatusResult' => ['verdict' => 'PASS', 'coverageState' => 'Submitted and indexed'],
+            'indexingCheckResult' => $indexingCheckResult,
+        ]);
+
+        $array = $result->toArray();
+
+        expect($array)->toHaveKey('indexingCheckResult')
+            ->and($array['indexingCheckResult']['primaryStatus'])->toBe('INDEXED')
+            ->and($array['indexingCheckResult']['reason_codes'])->toContain('INDEXED_CONFIRMED')
+            ->and($array['indexingCheckResult']['checked_at'])->toBe('2024-01-15T10:30:00+00:00');
     });
 });
