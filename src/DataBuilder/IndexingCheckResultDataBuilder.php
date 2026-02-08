@@ -10,6 +10,7 @@ use Pekral\GoogleConsole\Enum\IndexingCheckConfidence;
 use Pekral\GoogleConsole\Enum\IndexingCheckReasonCode;
 use Pekral\GoogleConsole\Enum\IndexingCheckSourceType;
 use Pekral\GoogleConsole\Enum\IndexingCheckStatus;
+use Pekral\GoogleConsole\Enum\OperatingMode;
 
 final class IndexingCheckResultDataBuilder
 {
@@ -54,9 +55,14 @@ final class IndexingCheckResultDataBuilder
      *     userCanonical?: string
      * } $indexStatus
      */
-    public function fromIndexStatusData(array $indexStatus, ?DateTimeImmutable $checkedAt = null): IndexingCheckResult
+    public function fromIndexStatusData(
+        array $indexStatus,
+        ?DateTimeImmutable $checkedAt = null,
+        ?OperatingMode $operatingMode = null,
+    ): IndexingCheckResult
     {
         $checkedAt ??= new DateTimeImmutable();
+        $mode = $operatingMode ?? OperatingMode::STRICT;
         $verdict = $indexStatus['verdict'] ?? '';
         $coverageState = $indexStatus['coverageState'] ?? '';
 
@@ -79,17 +85,40 @@ final class IndexingCheckResultDataBuilder
             return $this->createNotIndexed($checkedAt, $mappedReasons);
         }
 
+        if ($mode === OperatingMode::BEST_EFFORT && $this->isCoverageStateIndexed($coverageState)) {
+            return $this->createIndexedHeuristic($checkedAt, $mappedReasons);
+        }
+
         return $this->createUnknownMedium($checkedAt, $mappedReasons);
+    }
+
+    /**
+     * @param list<\Pekral\GoogleConsole\Enum\IndexingCheckReasonCode> $reasonCodes
+     */
+    private function buildResult(
+        IndexingCheckStatus $primaryStatus,
+        IndexingCheckConfidence $confidence,
+        array $reasonCodes,
+        DateTimeImmutable $checkedAt,
+        IndexingCheckSourceType $sourceType,
+    ): IndexingCheckResult {
+        return new IndexingCheckResult(
+            primaryStatus: $primaryStatus,
+            confidence: $confidence,
+            reasonCodes: $reasonCodes,
+            checkedAt: $checkedAt,
+            sourceType: $sourceType,
+        );
     }
 
     private function createUnknownLow(DateTimeImmutable $checkedAt): IndexingCheckResult
     {
-        return new IndexingCheckResult(
-            primaryStatus: IndexingCheckStatus::UNKNOWN,
-            confidence: IndexingCheckConfidence::LOW,
-            reasonCodes: [IndexingCheckReasonCode::INSUFFICIENT_DATA],
-            checkedAt: $checkedAt,
-            sourceType: IndexingCheckSourceType::AUTHORITATIVE,
+        return $this->buildResult(
+            IndexingCheckStatus::UNKNOWN,
+            IndexingCheckConfidence::LOW,
+            [IndexingCheckReasonCode::INSUFFICIENT_DATA],
+            $checkedAt,
+            IndexingCheckSourceType::AUTHORITATIVE,
         );
     }
 
@@ -98,12 +127,12 @@ final class IndexingCheckResultDataBuilder
      */
     private function createNotIndexedWithReasons(DateTimeImmutable $checkedAt, array $mappedReasons): IndexingCheckResult
     {
-        return new IndexingCheckResult(
-            primaryStatus: IndexingCheckStatus::NOT_INDEXED,
-            confidence: IndexingCheckConfidence::HIGH,
-            reasonCodes: [IndexingCheckReasonCode::NOT_INDEXED_CONFIRMED, ...$mappedReasons],
-            checkedAt: $checkedAt,
-            sourceType: IndexingCheckSourceType::AUTHORITATIVE,
+        return $this->buildResult(
+            IndexingCheckStatus::NOT_INDEXED,
+            IndexingCheckConfidence::HIGH,
+            [IndexingCheckReasonCode::NOT_INDEXED_CONFIRMED, ...$mappedReasons],
+            $checkedAt,
+            IndexingCheckSourceType::AUTHORITATIVE,
         );
     }
 
@@ -114,12 +143,28 @@ final class IndexingCheckResultDataBuilder
     {
         $supplementary = $this->filterNonBlockingReasons($mappedReasons);
 
-        return new IndexingCheckResult(
-            primaryStatus: IndexingCheckStatus::INDEXED,
-            confidence: IndexingCheckConfidence::HIGH,
-            reasonCodes: [IndexingCheckReasonCode::INDEXED_CONFIRMED, ...$supplementary],
-            checkedAt: $checkedAt,
-            sourceType: IndexingCheckSourceType::AUTHORITATIVE,
+        return $this->buildResult(
+            IndexingCheckStatus::INDEXED,
+            IndexingCheckConfidence::HIGH,
+            [IndexingCheckReasonCode::INDEXED_CONFIRMED, ...$supplementary],
+            $checkedAt,
+            IndexingCheckSourceType::AUTHORITATIVE,
+        );
+    }
+
+    /**
+     * @param list<\Pekral\GoogleConsole\Enum\IndexingCheckReasonCode> $mappedReasons
+     */
+    private function createIndexedHeuristic(DateTimeImmutable $checkedAt, array $mappedReasons = []): IndexingCheckResult
+    {
+        $supplementary = $this->filterNonBlockingReasons($mappedReasons);
+
+        return $this->buildResult(
+            IndexingCheckStatus::INDEXED,
+            IndexingCheckConfidence::MEDIUM,
+            [IndexingCheckReasonCode::HEURISTIC_ONLY, ...$supplementary],
+            $checkedAt,
+            IndexingCheckSourceType::HEURISTIC,
         );
     }
 
@@ -128,19 +173,20 @@ final class IndexingCheckResultDataBuilder
      */
     private function createNotIndexed(DateTimeImmutable $checkedAt, array $mappedReasons = []): IndexingCheckResult
     {
-        return new IndexingCheckResult(
-            primaryStatus: IndexingCheckStatus::NOT_INDEXED,
-            confidence: IndexingCheckConfidence::HIGH,
-            reasonCodes: [IndexingCheckReasonCode::NOT_INDEXED_CONFIRMED, ...$mappedReasons],
-            checkedAt: $checkedAt,
-            sourceType: IndexingCheckSourceType::AUTHORITATIVE,
+        return $this->buildResult(
+            IndexingCheckStatus::NOT_INDEXED,
+            IndexingCheckConfidence::HIGH,
+            [IndexingCheckReasonCode::NOT_INDEXED_CONFIRMED, ...$mappedReasons],
+            $checkedAt,
+            IndexingCheckSourceType::AUTHORITATIVE,
         );
     }
 
     /**
      * @param list<\Pekral\GoogleConsole\Enum\IndexingCheckReasonCode> $mappedReasons
+     * @return list<\Pekral\GoogleConsole\Enum\IndexingCheckReasonCode>
      */
-    private function createUnknownMedium(DateTimeImmutable $checkedAt, array $mappedReasons = []): IndexingCheckResult
+    private function mergeReasonsWithInsufficientData(array $mappedReasons): array
     {
         $reasons = [IndexingCheckReasonCode::INSUFFICIENT_DATA];
         $seen = [IndexingCheckReasonCode::INSUFFICIENT_DATA->value => true];
@@ -152,12 +198,20 @@ final class IndexingCheckResultDataBuilder
             }
         }
 
-        return new IndexingCheckResult(
-            primaryStatus: IndexingCheckStatus::UNKNOWN,
-            confidence: IndexingCheckConfidence::MEDIUM,
-            reasonCodes: $reasons,
-            checkedAt: $checkedAt,
-            sourceType: IndexingCheckSourceType::AUTHORITATIVE,
+        return $reasons;
+    }
+
+    /**
+     * @param list<\Pekral\GoogleConsole\Enum\IndexingCheckReasonCode> $mappedReasons
+     */
+    private function createUnknownMedium(DateTimeImmutable $checkedAt, array $mappedReasons = []): IndexingCheckResult
+    {
+        return $this->buildResult(
+            IndexingCheckStatus::UNKNOWN,
+            IndexingCheckConfidence::MEDIUM,
+            $this->mergeReasonsWithInsufficientData($mappedReasons),
+            $checkedAt,
+            IndexingCheckSourceType::AUTHORITATIVE,
         );
     }
 

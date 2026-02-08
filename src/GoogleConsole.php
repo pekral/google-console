@@ -27,6 +27,7 @@ use Pekral\GoogleConsole\DTO\SearchAnalyticsRow;
 use Pekral\GoogleConsole\DTO\Site;
 use Pekral\GoogleConsole\DTO\UrlInspectionResult;
 use Pekral\GoogleConsole\Enum\IndexingNotificationType;
+use Pekral\GoogleConsole\Enum\OperatingMode;
 use Pekral\GoogleConsole\Exception\GoogleConsoleFailure;
 use Pekral\GoogleConsole\Factory\GoogleClientFactory;
 use Pekral\GoogleConsole\Helper\TypeHelper;
@@ -136,10 +137,11 @@ final class GoogleConsole implements ConsoleContract
      *
      * @param string $siteUrl The site URL that owns the inspected page
      * @param string $inspectionUrl The full URL to inspect
+     * @param \Pekral\GoogleConsole\Enum\OperatingMode|null $operatingMode strict (default) or best-effort
      * @return \Pekral\GoogleConsole\DTO\UrlInspectionResult Detailed inspection result with indexing and mobile status
      * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure When the inspection request fails
      */
-    public function inspectUrl(string $siteUrl, string $inspectionUrl): UrlInspectionResult
+    public function inspectUrl(string $siteUrl, string $inspectionUrl, ?OperatingMode $operatingMode = null): UrlInspectionResult
     {
         $request = new InspectUrlIndexRequest();
         $request->setInspectionUrl($inspectionUrl);
@@ -155,7 +157,7 @@ final class GoogleConsole implements ConsoleContract
             $result = $response->getInspectionResult();
             assert($result instanceof GoogleUrlInspectionResult);
 
-            return $this->urlInspectionDataBuilder->fromGoogleResult($result);
+            return $this->urlInspectionDataBuilder->fromGoogleResult($result, $operatingMode);
         } catch (Exception $e) {
             throw new GoogleConsoleFailure(
                 $this->formatApiError($e, 'URL inspection failed'),

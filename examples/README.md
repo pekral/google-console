@@ -21,8 +21,8 @@ php examples/<name>.php
 | [list-sites.php](list-sites.php) | `pekral:google-sites-list` | List all sites from Search Console |
 | [get-site.php](get-site.php) | `pekral:google-site-get` | Get site details for https://pekral.cz/ |
 | [search-analytics.php](search-analytics.php) | `pekral:google-analytics-search` | Search analytics (30 days, query dimension) |
-| [inspect-url.php](inspect-url.php) | `pekral:google-url-inspect` | Inspect URL: indexing status, **business output** (primary status, confidence, reason codes), mobile usability |
-| [inspect-url-business-model.php](inspect-url-business-model.php) | — | Programmatic: call `inspectUrl()` and print the **indexing check result** (primary status, confidence, reason_codes, checked_at, source_type) |
+| [inspect-url.php](inspect-url.php) | `pekral:google-url-inspect` | Inspect URL: indexing status, **business output** (primary status, confidence, reason codes), mobile usability. Option: `--mode=strict` \| `--mode=best-effort` |
+| [inspect-url-business-model.php](inspect-url-business-model.php) | — | Programmatic: call `inspectUrl()` and print the **indexing check result** (primary status, confidence, reason_codes, checked_at, source_type). Optional 3rd argument: `OperatingMode::STRICT` \| `OperatingMode::BEST_EFFORT` |
 | [request-indexing.php](request-indexing.php) | `pekral:google-request-indexing` | Request indexing for a chosen URL |
 
 Shared setup (credentials, command registration) is in [bootstrap.php](bootstrap.php).
@@ -36,6 +36,8 @@ The URL inspection command and API response include an optional **business outpu
 - **Reason codes:** machine-readable list (e.g. `INDEXED_CONFIRMED`, `ROBOTS_BLOCKED`, `META_NOINDEX`)
 - **Checked at:** timestamp of evaluation
 - **Source type:** `authoritative` \| `heuristic`
+
+**Operating mode:** Use `--mode=strict` (default; never INDEXED high without authoritative data) or `--mode=best-effort` (allows heuristic INDEXED with `HEURISTIC_ONLY` when data is inconclusive). When using the API, pass `OperatingMode::STRICT` or `OperatingMode::BEST_EFFORT` as the third argument to `inspectUrl()`.
 
 Use [inspect-url.php](inspect-url.php) to see it in the CLI output (section "Business output (indexing check)"). Use [inspect-url-business-model.php](inspect-url-business-model.php) to access it in your own code via `$result->indexingCheckResult`.
 

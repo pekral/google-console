@@ -10,6 +10,7 @@ use Pekral\GoogleConsole\Enum\IndexingCheckConfidence;
 use Pekral\GoogleConsole\Enum\IndexingCheckReasonCode;
 use Pekral\GoogleConsole\Enum\IndexingCheckSourceType;
 use Pekral\GoogleConsole\Enum\IndexingCheckStatus;
+use Pekral\GoogleConsole\Enum\OperatingMode;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 
@@ -34,7 +35,7 @@ describe(InspectUrlCommand::class, function (): void {
 
         $googleConsole = Mockery::mock(ConsoleContract::class);
         $googleConsole->shouldReceive('inspectUrl')
-            ->with('https://example.com/', 'https://example.com/page')
+            ->with('https://example.com/', 'https://example.com/page', Mockery::any())
             ->andReturn($result);
 
         $command = new InspectUrlCommand();
@@ -193,7 +194,7 @@ describe(InspectUrlCommand::class, function (): void {
 
         $googleConsole = Mockery::mock(ConsoleContract::class);
         $googleConsole->shouldReceive('inspectUrl')
-            ->with('https://example.com/', 'https://example.com/page')
+            ->with('https://example.com/', 'https://example.com/page', Mockery::any())
             ->andReturn($result);
 
         $command = new InspectUrlCommand();
@@ -359,5 +360,116 @@ describe(InspectUrlCommand::class, function (): void {
             ->and($display)->toContain('UNKNOWN')
             ->and($display)->toContain('medium')
             ->and($display)->toContain('INSUFFICIENT_DATA');
+    });
+
+    it('passes operating mode to inspectUrl when --mode option is set', function (): void {
+        $result = new UrlInspectionResult(
+            inspectionResultLink: '',
+            indexStatusResult: 'PASS',
+            verdict: 'PASS',
+            coverageState: 'Submitted and indexed',
+            robotsTxtState: 'ALLOWED',
+            indexingState: 'INDEXING_ALLOWED',
+            lastCrawlTime: null,
+            pageFetchState: 'SUCCESSFUL',
+            crawledAs: null,
+            googleCanonical: null,
+            userCanonical: null,
+            isMobileFriendly: true,
+            mobileUsabilityIssue: null,
+        );
+
+        $googleConsole = Mockery::mock(ConsoleContract::class);
+        $googleConsole->shouldReceive('inspectUrl')
+            ->with('https://example.com/', 'https://example.com/page', OperatingMode::BEST_EFFORT)
+            ->once()
+            ->andReturn($result);
+
+        $command = new InspectUrlCommand();
+        $command->setGoogleConsole($googleConsole);
+
+        $tester = new CommandTester($command);
+        $tester->execute([
+            'site-url' => 'https://example.com/',
+            'inspection-url' => 'https://example.com/page',
+            '--credentials' => '/path/to/credentials.json',
+            '--mode' => 'best-effort',
+        ]);
+
+        expect($tester->getStatusCode())->toBe(Command::SUCCESS);
+    });
+
+    it('passes null operating mode when --mode is invalid so strict is used', function (): void {
+        $result = new UrlInspectionResult(
+            inspectionResultLink: '',
+            indexStatusResult: 'PASS',
+            verdict: 'PASS',
+            coverageState: 'Submitted and indexed',
+            robotsTxtState: 'ALLOWED',
+            indexingState: 'INDEXING_ALLOWED',
+            lastCrawlTime: null,
+            pageFetchState: 'SUCCESSFUL',
+            crawledAs: null,
+            googleCanonical: null,
+            userCanonical: null,
+            isMobileFriendly: true,
+            mobileUsabilityIssue: null,
+        );
+
+        $googleConsole = Mockery::mock(ConsoleContract::class);
+        $googleConsole->shouldReceive('inspectUrl')
+            ->with('https://example.com/', 'https://example.com/page', null)
+            ->once()
+            ->andReturn($result);
+
+        $command = new InspectUrlCommand();
+        $command->setGoogleConsole($googleConsole);
+
+        $tester = new CommandTester($command);
+        $tester->execute([
+            'site-url' => 'https://example.com/',
+            'inspection-url' => 'https://example.com/page',
+            '--credentials' => '/path/to/credentials.json',
+            '--mode' => 'invalid',
+        ]);
+
+        expect($tester->getStatusCode())->toBe(Command::SUCCESS);
+    });
+
+    it('passes null operating mode when --mode is empty string', function (): void {
+        $result = new UrlInspectionResult(
+            inspectionResultLink: '',
+            indexStatusResult: 'PASS',
+            verdict: 'PASS',
+            coverageState: 'Submitted and indexed',
+            robotsTxtState: 'ALLOWED',
+            indexingState: 'INDEXING_ALLOWED',
+            lastCrawlTime: null,
+            pageFetchState: 'SUCCESSFUL',
+            crawledAs: null,
+            googleCanonical: null,
+            userCanonical: null,
+            isMobileFriendly: true,
+            mobileUsabilityIssue: null,
+        );
+
+        $googleConsole = Mockery::mock(ConsoleContract::class);
+        $googleConsole->shouldReceive('inspectUrl')
+            ->with('https://example.com/', 'https://example.com/page', null)
+            ->once()
+            ->andReturn($result);
+
+        $command = new InspectUrlCommand();
+        $command->setGoogleConsole($googleConsole);
+
+        $tester = new CommandTester($command);
+        $tester->execute([
+            'site-url' => 'https://example.com/',
+            'inspection-url' => 'https://example.com/page',
+            '--credentials' => '/path/to/credentials.json',
+            '--mode' => '',
+        ]);
+
+        expect($tester->getStatusCode())->toBe(Command::SUCCESS);
     });
 });

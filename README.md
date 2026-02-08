@@ -15,6 +15,11 @@ A modern PHP wrapper for the Google Search Console API, providing typed DTOs, cl
 - Developers building SEO monitoring tools
 - DevOps teams tracking indexation status
 
+## Features
+
+- **URL Inspection** – Index status, verdict, coverage state, mobile usability; optional **business output model** (primary status INDEXED/NOT_INDEXED/UNKNOWN, confidence, reason codes, source type authoritative/heuristic)
+- **Operating mode** – `strict` (default: never INDEXED high without authoritative data) or `best-effort` (allows heuristic INDEXED with HEURISTIC_ONLY when inconclusive)
+
 ## Installation
 
 ```bash
@@ -97,12 +102,21 @@ Inspects a specific URL to check its indexing status and mobile usability.
 ```php
 $inspection = $console->inspectUrl(
     siteUrl: 'https://example.com/',
-    inspectionUrl: 'https://example.com/article'
+    inspectionUrl: 'https://example.com/article',
+    // operatingMode: null = OperatingMode::STRICT (default), or OperatingMode::BEST_EFFORT
 );
 
 echo 'Coverage State: ' . $inspection->coverageState . PHP_EOL;
 echo 'Indexing State: ' . $inspection->indexingState . PHP_EOL;
-echo 'Mobile Usability: ' . $inspection->mobileUsability . PHP_EOL;
+echo 'Mobile Friendly: ' . ($inspection->isMobileFriendly ? 'Yes' : 'No') . PHP_EOL;
+
+// Business output (when index status data is available)
+if ($inspection->indexingCheckResult !== null) {
+    $check = $inspection->indexingCheckResult;
+    echo 'Primary status: ' . $check->primaryStatus->value . PHP_EOL;  // INDEXED | NOT_INDEXED | UNKNOWN
+    echo 'Confidence: ' . $check->confidence->value . PHP_EOL;
+    echo 'Source type: ' . $check->sourceType->value . PHP_EOL;  // authoritative | heuristic
+}
 ```
 
 ## CLI Commands
@@ -119,8 +133,14 @@ bin/pekral-google get-site https://example.com/ --credentials=/path/to/credentia
 # Get search analytics data
 bin/pekral-google search-analytics https://example.com/ --credentials=/path/to/credentials.json --days=30
 
-# Inspect a URL
+# Inspect a URL (default: strict mode)
 bin/pekral-google inspect-url https://example.com/ https://example.com/page --credentials=/path/to/credentials.json
+
+# Inspect with best-effort mode (allows heuristic INDEXED when data is inconclusive)
+bin/pekral-google inspect-url https://example.com/ https://example.com/page --credentials=/path/to/credentials.json --mode=best-effort
+
+# JSON output
+bin/pekral-google inspect-url https://example.com/ https://example.com/page --credentials=/path/to/credentials.json --json
 ```
 
 ## Error Handling

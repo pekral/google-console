@@ -7,6 +7,7 @@ use Pekral\GoogleConsole\Enum\IndexingCheckConfidence;
 use Pekral\GoogleConsole\Enum\IndexingCheckReasonCode;
 use Pekral\GoogleConsole\Enum\IndexingCheckSourceType;
 use Pekral\GoogleConsole\Enum\IndexingCheckStatus;
+use Pekral\GoogleConsole\Enum\OperatingMode;
 
 describe(IndexingCheckResultDataBuilder::class, function (): void {
 
@@ -213,4 +214,39 @@ describe(IndexingCheckResultDataBuilder::class, function (): void {
         expect($result->checkedAt)->toBe($checkedAt)
             ->and($result->checkedAt->format('Y-m-d H:i:s'))->toBe('2024-06-01 12:00:00');
     });
+
+    it('returns UNKNOWN in strict mode when verdict neither PASS nor FAIL but coverage indexed', function () use ($mapper): void {
+        $indexStatus = [
+            'verdict' => 'PARTIAL',
+            'coverageState' => 'Submitted and indexed',
+            'robotsTxtState' => 'ALLOWED',
+            'indexingState' => 'INDEXING_ALLOWED',
+            'pageFetchState' => 'SUCCESSFUL',
+        ];
+
+        $result = $mapper->fromIndexStatusData($indexStatus, null, OperatingMode::STRICT);
+
+        expect($result->primaryStatus)->toBe(IndexingCheckStatus::UNKNOWN)
+            ->and($result->sourceType)->toBe(IndexingCheckSourceType::AUTHORITATIVE);
+    });
+
+    it(
+        'returns INDEXED with heuristic source and HEURISTIC_ONLY in best-effort when verdict not PASS but coverage indexed',
+        function () use ($mapper): void {
+            $indexStatus = [
+                'verdict' => 'PARTIAL',
+                'coverageState' => 'Submitted and indexed',
+                'robotsTxtState' => 'ALLOWED',
+                'indexingState' => 'INDEXING_ALLOWED',
+                'pageFetchState' => 'SUCCESSFUL',
+            ];
+    
+            $result = $mapper->fromIndexStatusData($indexStatus, null, OperatingMode::BEST_EFFORT);
+    
+            expect($result->primaryStatus)->toBe(IndexingCheckStatus::INDEXED)
+                ->and($result->confidence)->toBe(IndexingCheckConfidence::MEDIUM)
+                ->and($result->sourceType)->toBe(IndexingCheckSourceType::HEURISTIC)
+                ->and($result->reasonCodes)->toContain(IndexingCheckReasonCode::HEURISTIC_ONLY);
+        },
+    );
 });

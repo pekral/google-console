@@ -8,6 +8,7 @@ use Google\Service\SearchConsole\IndexStatusInspectionResult;
 use Google\Service\SearchConsole\MobileUsabilityInspectionResult;
 use Google\Service\SearchConsole\UrlInspectionResult as GoogleUrlInspectionResult;
 use Pekral\GoogleConsole\DTO\UrlInspectionResult;
+use Pekral\GoogleConsole\Enum\OperatingMode;
 
 final readonly class UrlInspectionDataBuilder
 {
@@ -15,10 +16,10 @@ final readonly class UrlInspectionDataBuilder
     public function __construct(private IndexingCheckResultDataBuilder $indexingCheckResultDataBuilder = new IndexingCheckResultDataBuilder()) {
     }
 
-    public function fromGoogleResult(GoogleUrlInspectionResult $result): UrlInspectionResult
+    public function fromGoogleResult(GoogleUrlInspectionResult $result, ?OperatingMode $operatingMode = null): UrlInspectionResult
     {
         $indexStatusData = $this->buildIndexStatusData($result->getIndexStatusResult());
-        $indexingCheckResult = $this->indexingCheckResultDataBuilder->fromIndexStatusData($indexStatusData);
+        $indexingCheckResult = $this->indexingCheckResultDataBuilder->fromIndexStatusData($indexStatusData, null, $operatingMode);
 
         return UrlInspectionResult::fromApiResponse([
             'indexingCheckResult' => $indexingCheckResult,

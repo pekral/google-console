@@ -17,6 +17,9 @@ declare(strict_types = 1);
  * - checked_at: timestamp of evaluation
  * - source_type: authoritative | heuristic
  *
+ * Optional 3rd argument: OperatingMode::STRICT (default) or OperatingMode::BEST_EFFORT
+ * to allow heuristic-based INDEXED when API data is inconclusive.
+ *
  * Test domain: pekral.cz
  *
  * Run:

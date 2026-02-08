@@ -10,6 +10,7 @@ use Pekral\GoogleConsole\DTO\IndexingResult;
 use Pekral\GoogleConsole\DTO\Site;
 use Pekral\GoogleConsole\DTO\UrlInspectionResult;
 use Pekral\GoogleConsole\Enum\IndexingNotificationType;
+use Pekral\GoogleConsole\Enum\OperatingMode;
 
 /**
  * Contract for Google Search Console API operations.
@@ -55,9 +56,10 @@ interface ConsoleContract
      *
      * @param string $siteUrl The site URL that owns the inspected page
      * @param string $inspectionUrl The full URL to inspect
+     * @param \Pekral\GoogleConsole\Enum\OperatingMode|null $operatingMode strict (default) or best-effort
      * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure
      */
-    public function inspectUrl(string $siteUrl, string $inspectionUrl): UrlInspectionResult;
+    public function inspectUrl(string $siteUrl, string $inspectionUrl, ?OperatingMode $operatingMode = null): UrlInspectionResult;
 
     /**
      * Retrieves information about a specific site.

@@ -8,9 +8,11 @@ use Pekral\GoogleConsole\Command\Output\ConsoleOutput;
 use Pekral\GoogleConsole\DTO\IndexingCheckResult;
 use Pekral\GoogleConsole\DTO\UrlInspectionResult;
 use Pekral\GoogleConsole\Enum\IndexingCheckReasonCode;
+use Pekral\GoogleConsole\Enum\OperatingMode;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -26,6 +28,13 @@ final class InspectUrlCommand extends BaseGoogleConsoleCommand
 
         $this->addArgument('site-url', InputArgument::REQUIRED, 'The site URL that owns the inspected page (e.g., https://example.com/)');
         $this->addArgument('inspection-url', InputArgument::REQUIRED, 'The full URL to inspect (e.g., https://example.com/page)');
+        $this->addOption(
+            'mode',
+            'm',
+            InputOption::VALUE_REQUIRED,
+            'Operating mode: strict (never INDEXED high without authoritative data) or best-effort (allow heuristic)',
+            OperatingMode::STRICT->value,
+        );
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -36,7 +45,8 @@ final class InspectUrlCommand extends BaseGoogleConsoleCommand
         $inspectionUrl = $input->getArgument('inspection-url');
         assert(is_string($inspectionUrl));
 
-        $result = $this->getGoogleConsole($input)->inspectUrl($siteUrl, $inspectionUrl);
+        $operatingMode = $this->resolveOperatingMode($input);
+        $result = $this->getGoogleConsole($input)->inspectUrl($siteUrl, $inspectionUrl, $operatingMode);
 
         if ($this->isJsonOutput($input)) {
             $this->outputJson($output, ['siteUrl' => $siteUrl, 'inspectionUrl' => $inspectionUrl, ...$result->toArray()]);
@@ -110,6 +120,17 @@ final class InspectUrlCommand extends BaseGoogleConsoleCommand
         }
 
         $out->newLine();
+    }
+
+    private function resolveOperatingMode(InputInterface $input): ?OperatingMode
+    {
+        $value = $input->getOption('mode');
+
+        if (!is_string($value) || $value === '') {
+            return null;
+        }
+
+        return OperatingMode::tryFrom($value) ?? null;
     }
 
 }
