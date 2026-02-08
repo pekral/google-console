@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "acd6635d9dc63f769311630329215579",
+    "content-hash": "8ced003df43610a993599b5fc8bb104a",
     "packages": [
         {
             "name": "firebase/php-jwt",
@@ -3125,20 +3125,19 @@
         },
         {
             "name": "pekral/phpcs-rules",
-            "version": "dev-master",
+            "version": "0.4.6",
             "source": {
                 "type": "git",
                 "url": "https://github.com/pekral/phpcs-rules.git",
-                "reference": "f99844d584db2f04f5c5b5b7422f7ac48d405d26"
+                "reference": "5732de34aff1c71d6cfede611c15b60e5c41c494"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/pekral/phpcs-rules/zipball/f99844d584db2f04f5c5b5b7422f7ac48d405d26",
-                "reference": "f99844d584db2f04f5c5b5b7422f7ac48d405d26",
+                "url": "https://api.github.com/repos/pekral/phpcs-rules/zipball/5732de34aff1c71d6cfede611c15b60e5c41c494",
+                "reference": "5732de34aff1c71d6cfede611c15b60e5c41c494",
                 "shasum": ""
             },
             "require": {
-                "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
                 "php": "^8.4|^8.5",
                 "slevomat/coding-standard": "^8.27.1"
             },
@@ -3152,8 +3151,7 @@
                 "roave/security-advisories": "dev-latest",
                 "symfony/console": "^7.4.1 || ^8.0.4"
             },
-            "default-branch": true,
-            "type": "phpcodesniffer-standard",
+            "type": "library",
             "autoload": {
                 "psr-4": {
                     "Pekral\\PhpcsRulesBuild\\": "src/"
@@ -3203,33 +3201,31 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-02-02T16:13:31+00:00"
+            "time": "2026-02-02T15:42:10+00:00"
         },
         {
             "name": "pekral/rector-rules",
-            "version": "dev-master",
+            "version": "0.4.7",
             "source": {
                 "type": "git",
                 "url": "https://github.com/pekral/rector-rules.git",
-                "reference": "df95515224c4850f34ce714d0386a22fdd43a7f2"
+                "reference": "769c9df65756ccc4741f7280e33bcb22065aa5be"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/pekral/rector-rules/zipball/df95515224c4850f34ce714d0386a22fdd43a7f2",
-                "reference": "df95515224c4850f34ce714d0386a22fdd43a7f2",
+                "url": "https://api.github.com/repos/pekral/rector-rules/zipball/769c9df65756ccc4741f7280e33bcb22065aa5be",
+                "reference": "769c9df65756ccc4741f7280e33bcb22065aa5be",
                 "shasum": ""
             },
             "require": {
-                "php": "^8.4|^8.5",
-                "rector/rector": "^2.3.5"
+                "php": "^8.4",
+                "rector/rector": "^2.3.4"
             },
             "require-dev": {
-                "pekral/cursor-rules": "^0.3.0",
-                "pekral/phpcs-rules": "^0.4.5",
-                "pekral/phpstan-rules": "^0.4.5",
+                "pekral/cursor-rules": "dev-master",
+                "pekral/phpcs-rules": "dev-master",
                 "roave/security-advisories": "dev-latest"
             },
-            "default-branch": true,
             "type": "library",
             "autoload": {
                 "psr-4": {
@@ -3269,7 +3265,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-02-02T16:04:08+00:00"
+            "time": "2026-01-25T14:21:46+00:00"
         },
         {
             "name": "pestphp/pest",
@@ -8022,8 +8018,6 @@
     "minimum-stability": "dev",
     "stability-flags": {
         "pekral/cursor-rules": 20,
-        "pekral/phpcs-rules": 20,
-        "pekral/rector-rules": 20,
         "roave/security-advisories": 20
     },
     "prefer-stable": true,
