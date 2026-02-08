@@ -20,15 +20,23 @@ final class IndexingCheckResultDataBuilder
 
     private const string VERDICT_UNSPECIFIED = 'VERDICT_UNSPECIFIED';
 
-    private const string ROBOTS_ALLOWED = 'ALLOWED';
-
-    private const string PAGE_FETCH_SUCCESSFUL = 'SUCCESSFUL';
-
-    private const string INDEXING_STATE_BLOCKED_META = 'BLOCKED_BY_META_TAG';
-
-    private const string INDEXING_STATE_BLOCKED_NOINDEX = 'BLOCKED_BY_NOINDEX';
-
     private const string COVERAGE_INDEXED_PHRASES = 'Submitted and indexed|Indexed|indexed';
+
+    /**
+     * @var array<\Pekral\GoogleConsole\Enum\IndexingCheckReasonCode>
+     */
+    private static array $blockingReasonCodes = [
+        IndexingCheckReasonCode::ROBOTS_BLOCKED,
+        IndexingCheckReasonCode::META_NOINDEX,
+        IndexingCheckReasonCode::HTTP_STATUS_NOT_200,
+        IndexingCheckReasonCode::SOFT_404_SUSPECTED,
+        IndexingCheckReasonCode::REDIRECTED,
+        IndexingCheckReasonCode::AUTH_REQUIRED_OR_FAILED,
+        IndexingCheckReasonCode::TIMEOUT,
+    ];
+
+    public function __construct(private readonly IndexStatusToReasonCodesMapper $indexStatusToReasonCodesMapper = new IndexStatusToReasonCodesMapper()) {
+    }
 
     /**
      * Maps URL Inspection API index status to business IndexingCheckResult (SPEC section 4).
@@ -49,29 +57,27 @@ final class IndexingCheckResultDataBuilder
         $checkedAt ??= new DateTimeImmutable();
         $verdict = $indexStatus['verdict'] ?? '';
         $coverageState = $indexStatus['coverageState'] ?? '';
-        $indexingState = $indexStatus['indexingState'] ?? '';
-        $robotsTxtState = $indexStatus['robotsTxtState'] ?? '';
-        $pageFetchState = $indexStatus['pageFetchState'] ?? '';
 
         if ($this->isEmptyOrUnspecified($verdict, $indexStatus)) {
             return $this->createUnknownLow($checkedAt);
         }
 
-        $exclusionReasons = $this->collectExclusionReasonCodes($robotsTxtState, $indexingState, $pageFetchState);
+        $mappedReasons = $this->indexStatusToReasonCodesMapper->map($indexStatus);
+        $hasBlockingReason = $this->hasAnyBlockingReason($mappedReasons);
 
-        if ($exclusionReasons !== []) {
-            return $this->createNotIndexedWithReasons($checkedAt, $exclusionReasons);
+        if ($hasBlockingReason) {
+            return $this->createNotIndexedWithReasons($checkedAt, $mappedReasons);
         }
 
         if ($verdict === self::VERDICT_PASS && $this->isCoverageStateIndexed($coverageState)) {
-            return $this->createIndexed($checkedAt);
+            return $this->createIndexed($checkedAt, $mappedReasons);
         }
 
         if ($verdict === self::VERDICT_FAIL) {
-            return $this->createNotIndexed($checkedAt);
+            return $this->createNotIndexed($checkedAt, $mappedReasons);
         }
 
-        return $this->createUnknownMedium($checkedAt);
+        return $this->createUnknownMedium($checkedAt, $mappedReasons);
     }
 
     private function createUnknownLow(DateTimeImmutable $checkedAt): IndexingCheckResult
@@ -86,50 +92,102 @@ final class IndexingCheckResultDataBuilder
     }
 
     /**
-     * @param list<\Pekral\GoogleConsole\Enum\IndexingCheckReasonCode> $exclusionReasons
+     * @param list<\Pekral\GoogleConsole\Enum\IndexingCheckReasonCode> $mappedReasons
      */
-    private function createNotIndexedWithReasons(DateTimeImmutable $checkedAt, array $exclusionReasons): IndexingCheckResult
+    private function createNotIndexedWithReasons(DateTimeImmutable $checkedAt, array $mappedReasons): IndexingCheckResult
     {
         return new IndexingCheckResult(
             primaryStatus: IndexingCheckStatus::NOT_INDEXED,
             confidence: IndexingCheckConfidence::HIGH,
-            reasonCodes: [IndexingCheckReasonCode::NOT_INDEXED_CONFIRMED, ...$exclusionReasons],
+            reasonCodes: [IndexingCheckReasonCode::NOT_INDEXED_CONFIRMED, ...$mappedReasons],
             checkedAt: $checkedAt,
             sourceType: IndexingCheckSourceType::AUTHORITATIVE,
         );
     }
 
-    private function createIndexed(DateTimeImmutable $checkedAt): IndexingCheckResult
+    /**
+     * @param list<\Pekral\GoogleConsole\Enum\IndexingCheckReasonCode> $mappedReasons
+     */
+    private function createIndexed(DateTimeImmutable $checkedAt, array $mappedReasons = []): IndexingCheckResult
     {
+        $supplementary = $this->filterNonBlockingReasons($mappedReasons);
+
         return new IndexingCheckResult(
             primaryStatus: IndexingCheckStatus::INDEXED,
             confidence: IndexingCheckConfidence::HIGH,
-            reasonCodes: [IndexingCheckReasonCode::INDEXED_CONFIRMED],
+            reasonCodes: [IndexingCheckReasonCode::INDEXED_CONFIRMED, ...$supplementary],
             checkedAt: $checkedAt,
             sourceType: IndexingCheckSourceType::AUTHORITATIVE,
         );
     }
 
-    private function createNotIndexed(DateTimeImmutable $checkedAt): IndexingCheckResult
+    /**
+     * @param list<\Pekral\GoogleConsole\Enum\IndexingCheckReasonCode> $mappedReasons
+     */
+    private function createNotIndexed(DateTimeImmutable $checkedAt, array $mappedReasons = []): IndexingCheckResult
     {
         return new IndexingCheckResult(
             primaryStatus: IndexingCheckStatus::NOT_INDEXED,
             confidence: IndexingCheckConfidence::HIGH,
-            reasonCodes: [IndexingCheckReasonCode::NOT_INDEXED_CONFIRMED],
+            reasonCodes: [IndexingCheckReasonCode::NOT_INDEXED_CONFIRMED, ...$mappedReasons],
             checkedAt: $checkedAt,
             sourceType: IndexingCheckSourceType::AUTHORITATIVE,
         );
     }
 
-    private function createUnknownMedium(DateTimeImmutable $checkedAt): IndexingCheckResult
+    /**
+     * @param list<\Pekral\GoogleConsole\Enum\IndexingCheckReasonCode> $mappedReasons
+     */
+    private function createUnknownMedium(DateTimeImmutable $checkedAt, array $mappedReasons = []): IndexingCheckResult
     {
+        $reasons = [IndexingCheckReasonCode::INSUFFICIENT_DATA];
+        $seen = [IndexingCheckReasonCode::INSUFFICIENT_DATA->value => true];
+
+        foreach ($mappedReasons as $code) {
+            if (!isset($seen[$code->value])) {
+                $seen[$code->value] = true;
+                $reasons[] = $code;
+            }
+        }
+
         return new IndexingCheckResult(
             primaryStatus: IndexingCheckStatus::UNKNOWN,
             confidence: IndexingCheckConfidence::MEDIUM,
-            reasonCodes: [IndexingCheckReasonCode::INSUFFICIENT_DATA],
+            reasonCodes: $reasons,
             checkedAt: $checkedAt,
             sourceType: IndexingCheckSourceType::AUTHORITATIVE,
         );
+    }
+
+    /**
+     * @param list<\Pekral\GoogleConsole\Enum\IndexingCheckReasonCode> $reasons
+     */
+    private function hasAnyBlockingReason(array $reasons): bool
+    {
+        foreach ($reasons as $code) {
+            if (in_array($code, self::$blockingReasonCodes, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param list<\Pekral\GoogleConsole\Enum\IndexingCheckReasonCode> $reasons
+     * @return list<\Pekral\GoogleConsole\Enum\IndexingCheckReasonCode>
+     */
+    private function filterNonBlockingReasons(array $reasons): array
+    {
+        $out = [];
+
+        foreach ($reasons as $code) {
+            if (!in_array($code, self::$blockingReasonCodes, true)) {
+                $out[] = $code;
+            }
+        }
+
+        return $out;
     }
 
     /**
@@ -147,28 +205,6 @@ final class IndexingCheckResultDataBuilder
             || ($indexStatus['pageFetchState'] ?? '') !== '';
 
         return !$hasAny;
-    }
-
-    /**
-     * @return list<\Pekral\GoogleConsole\Enum\IndexingCheckReasonCode>
-     */
-    private function collectExclusionReasonCodes(string $robotsTxtState, string $indexingState, string $pageFetchState): array
-    {
-        $reasons = [];
-
-        if ($robotsTxtState !== '' && $robotsTxtState !== self::ROBOTS_ALLOWED) {
-            $reasons[] = IndexingCheckReasonCode::ROBOTS_BLOCKED;
-        }
-
-        if ($indexingState === self::INDEXING_STATE_BLOCKED_META || $indexingState === self::INDEXING_STATE_BLOCKED_NOINDEX) {
-            $reasons[] = IndexingCheckReasonCode::META_NOINDEX;
-        }
-
-        if ($pageFetchState !== '' && $pageFetchState !== self::PAGE_FETCH_SUCCESSFUL) {
-            $reasons[] = IndexingCheckReasonCode::HTTP_STATUS_NOT_200;
-        }
-
-        return $reasons;
     }
 
     private function isCoverageStateIndexed(string $coverageState): bool
