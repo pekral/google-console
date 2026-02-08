@@ -136,7 +136,71 @@ describe(IndexingCheckResultDataBuilder::class, function (): void {
 
         expect($result->primaryStatus)->toBe(IndexingCheckStatus::UNKNOWN)
             ->and($result->confidence)->toBe(IndexingCheckConfidence::MEDIUM)
-            ->and($result->reasonCodes)->toContain(IndexingCheckReasonCode::INSUFFICIENT_DATA);
+            ->and($result->reasonCodes)->toContain(IndexingCheckReasonCode::INSUFFICIENT_DATA)
+            ->and($result->reasonCodes)->toContain(IndexingCheckReasonCode::INDEXING_PENDING);
+    });
+
+    it('returns NOT_INDEXED with META_NOINDEX when blocked by http header', function () use ($mapper): void {
+        $indexStatus = [
+            'verdict' => 'FAIL',
+            'coverageState' => '',
+            'robotsTxtState' => 'ALLOWED',
+            'indexingState' => 'BLOCKED_BY_HTTP_HEADER',
+            'pageFetchState' => 'SUCCESSFUL',
+        ];
+
+        $result = $mapper->fromIndexStatusData($indexStatus);
+
+        expect($result->primaryStatus)->toBe(IndexingCheckStatus::NOT_INDEXED)
+            ->and($result->reasonCodes)->toContain(IndexingCheckReasonCode::META_NOINDEX);
+    });
+
+    it('returns NOT_INDEXED with SOFT_404_SUSPECTED when page fetch state is SOFT_404', function () use ($mapper): void {
+        $indexStatus = [
+            'verdict' => 'FAIL',
+            'coverageState' => '',
+            'robotsTxtState' => 'ALLOWED',
+            'indexingState' => 'INDEXING_ALLOWED',
+            'pageFetchState' => 'SOFT_404',
+        ];
+
+        $result = $mapper->fromIndexStatusData($indexStatus);
+
+        expect($result->primaryStatus)->toBe(IndexingCheckStatus::NOT_INDEXED)
+            ->and($result->reasonCodes)->toContain(IndexingCheckReasonCode::SOFT_404_SUSPECTED);
+    });
+
+    it('returns NOT_INDEXED with REDIRECTED when page fetch state is REDIRECT_ERROR', function () use ($mapper): void {
+        $indexStatus = [
+            'verdict' => 'FAIL',
+            'coverageState' => '',
+            'robotsTxtState' => 'ALLOWED',
+            'indexingState' => 'INDEXING_ALLOWED',
+            'pageFetchState' => 'REDIRECT_ERROR',
+        ];
+
+        $result = $mapper->fromIndexStatusData($indexStatus);
+
+        expect($result->primaryStatus)->toBe(IndexingCheckStatus::NOT_INDEXED)
+            ->and($result->reasonCodes)->toContain(IndexingCheckReasonCode::REDIRECTED);
+    });
+
+    it('returns INDEXED with CANONICAL_MISMATCH when indexed but google and user canonical differ', function () use ($mapper): void {
+        $indexStatus = [
+            'verdict' => 'PASS',
+            'coverageState' => 'Submitted and indexed',
+            'robotsTxtState' => 'ALLOWED',
+            'indexingState' => 'INDEXING_ALLOWED',
+            'pageFetchState' => 'SUCCESSFUL',
+            'googleCanonical' => 'https://example.com/a',
+            'userCanonical' => 'https://example.com/b',
+        ];
+
+        $result = $mapper->fromIndexStatusData($indexStatus);
+
+        expect($result->primaryStatus)->toBe(IndexingCheckStatus::INDEXED)
+            ->and($result->reasonCodes)->toContain(IndexingCheckReasonCode::INDEXED_CONFIRMED)
+            ->and($result->reasonCodes)->toContain(IndexingCheckReasonCode::CANONICAL_MISMATCH);
     });
 
     it('uses provided checked_at when given', function () use ($mapper): void {
