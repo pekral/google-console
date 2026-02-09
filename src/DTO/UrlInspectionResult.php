@@ -5,6 +5,10 @@ declare(strict_types = 1);
 namespace Pekral\GoogleConsole\DTO;
 
 use DateTimeImmutable;
+use Pekral\GoogleConsole\Enum\IndexingCheckConfidence;
+use Pekral\GoogleConsole\Enum\IndexingCheckReasonCode;
+use Pekral\GoogleConsole\Enum\IndexingCheckSourceType;
+use Pekral\GoogleConsole\Enum\IndexingCheckStatus;
 
 final readonly class UrlInspectionResult
 {
@@ -82,6 +86,32 @@ final readonly class UrlInspectionResult
             isMobileFriendly: ($mobileUsability['verdict'] ?? '') === 'PASS',
             mobileUsabilityIssue: $mobileIssue,
             indexingCheckResult: $data['indexingCheckResult'] ?? null,
+        );
+    }
+
+    public static function forSoftFailure(IndexingCheckReasonCode $reasonCode): self
+    {
+        return new self(
+            inspectionResultLink: '',
+            indexStatusResult: 'VERDICT_UNSPECIFIED',
+            verdict: 'VERDICT_UNSPECIFIED',
+            coverageState: '',
+            robotsTxtState: '',
+            indexingState: '',
+            lastCrawlTime: null,
+            pageFetchState: '',
+            crawledAs: null,
+            googleCanonical: null,
+            userCanonical: null,
+            isMobileFriendly: false,
+            mobileUsabilityIssue: null,
+            indexingCheckResult: new IndexingCheckResult(
+                primaryStatus: IndexingCheckStatus::UNKNOWN,
+                confidence: IndexingCheckConfidence::LOW,
+                reasonCodes: [$reasonCode],
+                checkedAt: new DateTimeImmutable(),
+                sourceType: IndexingCheckSourceType::HEURISTIC,
+            ),
         );
     }
 

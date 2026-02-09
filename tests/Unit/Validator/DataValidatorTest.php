@@ -2,6 +2,7 @@
 
 declare(strict_types = 1);
 
+use Pekral\GoogleConsole\Exception\BatchSizeLimitExceeded;
 use Pekral\GoogleConsole\Exception\GoogleConsoleFailure;
 use Pekral\GoogleConsole\Validator\DataValidator;
 
@@ -33,6 +34,36 @@ describe(DataValidator::class, function (): void {
         $validator = new DataValidator();
 
         $validator->validateDimensions([]);
+
+        expect(true)->toBeTrue();
+    });
+
+    it('validates batch size within limit', function (): void {
+        $validator = new DataValidator();
+
+        $validator->validateBatchSize(50, 100);
+
+        expect(true)->toBeTrue();
+    });
+
+    it('validates batch size at exact limit', function (): void {
+        $validator = new DataValidator();
+
+        $validator->validateBatchSize(100, 100);
+
+        expect(true)->toBeTrue();
+    });
+
+    it('throws BatchSizeLimitExceeded when batch size exceeds limit', function (): void {
+        $validator = new DataValidator();
+
+        $validator->validateBatchSize(101, 100);
+    })->throws(BatchSizeLimitExceeded::class, 'Batch size 101 exceeds maximum of 100 URLs');
+
+    it('validates zero batch size', function (): void {
+        $validator = new DataValidator();
+
+        $validator->validateBatchSize(0, 100);
 
         expect(true)->toBeTrue();
     });

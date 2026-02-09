@@ -18,6 +18,7 @@ use Google\Service\Webmasters\SearchAnalyticsQueryResponse;
 use Google\Service\Webmasters\SitesListResponse;
 use Google\Service\Webmasters\WmxSite;
 use GuzzleHttp\Psr7\Request;
+use Pekral\GoogleConsole\Config\BatchConfig;
 use Pekral\GoogleConsole\Config\GoogleConfig;
 use Pekral\GoogleConsole\DataBuilder\BatchAggregationBuilder;
 use Pekral\GoogleConsole\DataBuilder\RequestDataBuilder;
@@ -36,6 +37,7 @@ use Pekral\GoogleConsole\Enum\IndexingNotificationType;
 use Pekral\GoogleConsole\Enum\OperatingMode;
 use Pekral\GoogleConsole\Exception\GoogleConsoleFailure;
 use Pekral\GoogleConsole\Factory\GoogleClientFactory;
+use Pekral\GoogleConsole\Handler\BatchFailureHandler;
 use Pekral\GoogleConsole\Helper\TypeHelper;
 use Pekral\GoogleConsole\UrlNormalizer\UrlNormalizer;
 use Pekral\GoogleConsole\Validator\DataValidator;
@@ -61,6 +63,8 @@ final class GoogleConsole implements ConsoleContract
         private readonly ?UrlNormalizer $urlNormalizer = null,
         private readonly BatchAggregationBuilder $batchAggregationBuilder = new BatchAggregationBuilder(),
         private readonly IndexingRunComparator $indexingRunComparator = new IndexingRunComparator(),
+        private readonly ?BatchConfig $batchConfig = null,
+        private readonly BatchFailureHandler $batchFailureHandler = new BatchFailureHandler(),
     ) {
     }
 
@@ -183,11 +187,16 @@ final class GoogleConsole implements ConsoleContract
      * Inspects multiple URLs and returns per-URL results plus aggregation.
      * Batch verdict is FAIL if any critical URL is NOT_INDEXED.
      *
+     * When BatchConfig is provided, enforces batch size limits, applies cooldown
+     * with retries for temporary API errors, and records soft failures instead
+     * of throwing exceptions for rate limits, timeouts, and server errors.
+     *
      * @param string $siteUrl The site URL that owns the inspected pages
      * @param array<int, string> $urls URLs to inspect
      * @param array<int, string> $criticalUrls Subset of URLs that must be INDEXED for batch to PASS
      * @param \Pekral\GoogleConsole\Enum\OperatingMode|null $operatingMode strict (default) or best-effort
-     * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure
+     * @throws \Pekral\GoogleConsole\Exception\BatchSizeLimitExceeded When batch size exceeds configured maximum
+     * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure When a hard failure occurs
      */
     public function inspectBatchUrls(
         string $siteUrl,
@@ -195,14 +204,16 @@ final class GoogleConsole implements ConsoleContract
         array $criticalUrls = [],
         ?OperatingMode $operatingMode = null,
     ): BatchUrlInspectionResult {
+        if ($this->batchConfig !== null) {
+            $this->dataValidator->validateBatchSize(count($urls), $this->batchConfig->maxBatchSize);
+        }
+
         $criticalSet = array_flip($criticalUrls);
         $perUrlResultsList = [];
         $perUrlResultsByUrl = [];
 
         foreach ($urls as $url) {
-            $result = $this->inspectUrl($siteUrl, $url, $operatingMode);
-            $status = IndexingCheckStatus::fromUrlInspectionResult($result);
-            $perUrl = new PerUrlInspectionResult(url: $url, status: $status, result: $result);
+            $perUrl = $this->inspectSingleUrlForBatch($siteUrl, $url, $operatingMode);
             $perUrlResultsList[] = $perUrl;
             $perUrlResultsByUrl[$url] = $perUrl;
         }
@@ -294,6 +305,44 @@ final class GoogleConsole implements ConsoleContract
                 (int) $e->getCode(),
                 $e,
             );
+        }
+    }
+
+    private function inspectSingleUrlForBatch(string $siteUrl, string $url, ?OperatingMode $operatingMode): PerUrlInspectionResult {
+        $maxAttempts = $this->batchConfig !== null
+            ? $this->batchConfig->maxRetries + 1
+            : 1;
+        $lastException = null;
+
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            try {
+                $result = $this->inspectUrl($siteUrl, $url, $operatingMode);
+
+                return new PerUrlInspectionResult(
+                    url: $url,
+                    status: IndexingCheckStatus::fromUrlInspectionResult($result),
+                    result: $result,
+                );
+            } catch (GoogleConsoleFailure $e) {
+                $lastException = $e;
+                $this->retrySoftFailureOrThrow($e, $attempt, $maxAttempts);
+            }
+        }
+
+        return $this->batchFailureHandler->buildSoftFailureResult($url, $lastException ?? new GoogleConsoleFailure('Unexpected batch inspection error'));
+    }
+
+    /**
+     * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure When the failure is hard (non-retryable)
+     */
+    private function retrySoftFailureOrThrow(GoogleConsoleFailure $exception, int $attempt, int $maxAttempts): void
+    {
+        if ($this->batchConfig === null || !$this->batchFailureHandler->isSoftFailure($exception)) {
+            throw $exception;
+        }
+
+        if ($attempt < $maxAttempts) {
+            $this->batchConfig->applyCooldown();
         }
     }
 

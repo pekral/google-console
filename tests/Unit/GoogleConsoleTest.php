@@ -17,6 +17,7 @@ use Google\Service\Webmasters\SitesListResponse;
 use Google\Service\Webmasters\WmxSite;
 use GuzzleHttp\Client as HttpClient;
 use GuzzleHttp\Psr7\Response;
+use Pekral\GoogleConsole\Config\BatchConfig;
 use Pekral\GoogleConsole\Config\GoogleConfig;
 use Pekral\GoogleConsole\DTO\BatchAggregation;
 use Pekral\GoogleConsole\DTO\BatchUrlInspectionResult;
@@ -26,9 +27,12 @@ use Pekral\GoogleConsole\DTO\SearchAnalyticsRow;
 use Pekral\GoogleConsole\DTO\Site;
 use Pekral\GoogleConsole\DTO\UrlInspectionResult;
 use Pekral\GoogleConsole\Enum\BatchVerdict;
+use Pekral\GoogleConsole\Enum\FailureType;
 use Pekral\GoogleConsole\Enum\IndexingChangeType;
+use Pekral\GoogleConsole\Enum\IndexingCheckReasonCode;
 use Pekral\GoogleConsole\Enum\IndexingCheckStatus;
 use Pekral\GoogleConsole\Enum\IndexingNotificationType;
+use Pekral\GoogleConsole\Exception\BatchSizeLimitExceeded;
 use Pekral\GoogleConsole\Exception\GoogleConsoleFailure;
 use Pekral\GoogleConsole\Factory\GoogleClientFactory;
 use Pekral\GoogleConsole\GoogleConsole;
@@ -54,14 +58,31 @@ function createTestCredentialsFile(): string
     return $tempFile;
 }
 
-function createGoogleConsole(): GoogleConsole
+function createGoogleConsole(?BatchConfig $batchConfig = null): GoogleConsole
 {
     $tempFile = createTestCredentialsFile();
     $config = GoogleConfig::fromCredentialsPath($tempFile);
-    $console = new GoogleConsole(new GoogleClientFactory()->create($config));
+    $console = new GoogleConsole(new GoogleClientFactory()->create($config), batchConfig: $batchConfig);
     unlink($tempFile);
 
     return $console;
+}
+
+function noOpSleep(): Closure
+{
+    return static function (int $seconds): void {
+        assert($seconds >= 0);
+    };
+}
+
+function createBatchConfig(int $maxBatchSize = 100, int $cooldownSeconds = 1, int $maxRetries = 2): BatchConfig
+{
+    return new BatchConfig(
+        maxBatchSize: $maxBatchSize,
+        cooldownSeconds: $cooldownSeconds,
+        maxRetries: $maxRetries,
+        sleepFunction: noOpSleep(),
+    );
 }
 
 describe(GoogleConsole::class, function (): void {
@@ -795,6 +816,385 @@ describe(GoogleConsole::class, function (): void {
             ->and($result->aggregation->indexedCount)->toBe(0)
             ->and($result->aggregation->notIndexedCount)->toBe(0)
             ->and($result->aggregation->unknownCount)->toBe(0);
+    });
+
+    it('inspectBatchUrls throws BatchSizeLimitExceeded when batch exceeds configured maximum', function (): void {
+        $console = createGoogleConsole(createBatchConfig(maxBatchSize: 2));
+
+        $console->inspectBatchUrls(
+            'https://example.com/',
+            ['https://example.com/a', 'https://example.com/b', 'https://example.com/c'],
+        );
+    })->throws(BatchSizeLimitExceeded::class, 'Batch size 3 exceeds maximum of 2 URLs');
+
+    it('inspectBatchUrls allows batch at exact limit', function (): void {
+        $console = createGoogleConsole(createBatchConfig(maxBatchSize: 2));
+
+        $indexStatus = Mockery::mock(IndexStatusInspectionResult::class);
+        $indexStatus->shouldReceive('getVerdict')->andReturn('PASS');
+        $indexStatus->shouldReceive('getCoverageState')->andReturn('Submitted and indexed');
+        $indexStatus->shouldReceive('getRobotsTxtState')->andReturn('ALLOWED');
+        $indexStatus->shouldReceive('getIndexingState')->andReturn('INDEXING_ALLOWED');
+        $indexStatus->shouldReceive('getLastCrawlTime')->andReturn(null);
+        $indexStatus->shouldReceive('getPageFetchState')->andReturn('SUCCESSFUL');
+        $indexStatus->shouldReceive('getCrawledAs')->andReturn('MOBILE');
+        $indexStatus->shouldReceive('getGoogleCanonical')->andReturn('https://example.com/a');
+        $indexStatus->shouldReceive('getUserCanonical')->andReturn('https://example.com/a');
+
+        $mobileUsability = Mockery::mock(MobileUsabilityInspectionResult::class);
+        $mobileUsability->shouldReceive('getVerdict')->andReturn('PASS');
+        $mobileUsability->shouldReceive('getIssues')->andReturn([]);
+
+        $inspectionResult = Mockery::mock(GoogleUrlInspectionResult::class);
+        $inspectionResult->shouldReceive('getInspectionResultLink')->andReturn('');
+        $inspectionResult->shouldReceive('getIndexStatusResult')->andReturn($indexStatus);
+        $inspectionResult->shouldReceive('getMobileUsabilityResult')->andReturn($mobileUsability);
+
+        $inspectResponse = Mockery::mock(InspectUrlIndexResponse::class);
+        $inspectResponse->shouldReceive('getInspectionResult')->andReturn($inspectionResult);
+
+        $urlInspectionResource = Mockery::mock(SearchConsoleService\Resource\UrlInspectionIndex::class);
+        $urlInspectionResource->shouldReceive('inspect')->andReturn($inspectResponse);
+
+        $searchConsoleService = Mockery::mock(SearchConsoleService::class);
+        $searchConsoleService->urlInspection_index = $urlInspectionResource;
+
+        $reflection = new ReflectionClass($console);
+        $property = $reflection->getProperty('searchConsoleService');
+        $property->setValue($console, $searchConsoleService);
+
+        $result = $console->inspectBatchUrls(
+            'https://example.com/',
+            ['https://example.com/a', 'https://example.com/b'],
+        );
+
+        expect($result->perUrlResults)->toHaveCount(2);
+    });
+
+    it('inspectBatchUrls does not enforce batch limit when BatchConfig is null', function (): void {
+        $console = createGoogleConsole();
+
+        $result = $console->inspectBatchUrls('https://example.com/', [], []);
+
+        expect($result->batchVerdict)->toBe(BatchVerdict::PASS);
+    });
+
+    it('inspectBatchUrls records soft failure for rate limited url', function (): void {
+        $console = createGoogleConsole(createBatchConfig(maxRetries: 0));
+
+        $urlInspectionResource = Mockery::mock(SearchConsoleService\Resource\UrlInspectionIndex::class);
+        $urlInspectionResource->shouldReceive('inspect')
+            ->andThrow(new GoogleServiceException('Quota exceeded', 429));
+
+        $searchConsoleService = Mockery::mock(SearchConsoleService::class);
+        $searchConsoleService->urlInspection_index = $urlInspectionResource;
+
+        $reflection = new ReflectionClass($console);
+        $property = $reflection->getProperty('searchConsoleService');
+        $property->setValue($console, $searchConsoleService);
+
+        $result = $console->inspectBatchUrls(
+            'https://example.com/',
+            ['https://example.com/rate-limited'],
+        );
+
+        expect($result->perUrlResults)->toHaveCount(1)
+            ->and($result->perUrlResults['https://example.com/rate-limited']->status)->toBe(IndexingCheckStatus::UNKNOWN)
+            ->and($result->perUrlResults['https://example.com/rate-limited']->failureType)->toBe(FailureType::SOFT)
+            ->and($result->perUrlResults['https://example.com/rate-limited']->isSoftFailure())->toBeTrue()
+            ->and($result->perUrlResults['https://example.com/rate-limited']->result->indexingCheckResult?->reasonCodes[0])
+            ->toBe(IndexingCheckReasonCode::RATE_LIMITED);
+    });
+
+    it('inspectBatchUrls records soft failure for timeout', function (): void {
+        $console = createGoogleConsole(createBatchConfig(maxRetries: 0));
+
+        $urlInspectionResource = Mockery::mock(SearchConsoleService\Resource\UrlInspectionIndex::class);
+        $urlInspectionResource->shouldReceive('inspect')
+            ->andThrow(new GoogleServiceException('Gateway timeout', 504));
+
+        $searchConsoleService = Mockery::mock(SearchConsoleService::class);
+        $searchConsoleService->urlInspection_index = $urlInspectionResource;
+
+        $reflection = new ReflectionClass($console);
+        $property = $reflection->getProperty('searchConsoleService');
+        $property->setValue($console, $searchConsoleService);
+
+        $result = $console->inspectBatchUrls(
+            'https://example.com/',
+            ['https://example.com/timeout'],
+        );
+
+        expect($result->perUrlResults['https://example.com/timeout']->status)->toBe(IndexingCheckStatus::UNKNOWN)
+            ->and($result->perUrlResults['https://example.com/timeout']->failureType)->toBe(FailureType::SOFT)
+            ->and($result->perUrlResults['https://example.com/timeout']->result->indexingCheckResult?->reasonCodes[0])
+            ->toBe(IndexingCheckReasonCode::TIMEOUT);
+    });
+
+    it('inspectBatchUrls records soft failure for server error with insufficient data', function (): void {
+        $console = createGoogleConsole(createBatchConfig(maxRetries: 0));
+
+        $urlInspectionResource = Mockery::mock(SearchConsoleService\Resource\UrlInspectionIndex::class);
+        $urlInspectionResource->shouldReceive('inspect')
+            ->andThrow(new GoogleServiceException('Internal server error', 500));
+
+        $searchConsoleService = Mockery::mock(SearchConsoleService::class);
+        $searchConsoleService->urlInspection_index = $urlInspectionResource;
+
+        $reflection = new ReflectionClass($console);
+        $property = $reflection->getProperty('searchConsoleService');
+        $property->setValue($console, $searchConsoleService);
+
+        $result = $console->inspectBatchUrls(
+            'https://example.com/',
+            ['https://example.com/error'],
+        );
+
+        expect($result->perUrlResults['https://example.com/error']->failureType)->toBe(FailureType::SOFT)
+            ->and($result->perUrlResults['https://example.com/error']->result->indexingCheckResult?->reasonCodes[0])
+            ->toBe(IndexingCheckReasonCode::INSUFFICIENT_DATA);
+    });
+
+    it('inspectBatchUrls retries on soft failure and succeeds', function (): void {
+        $console = createGoogleConsole(createBatchConfig(maxRetries: 2));
+
+        $indexStatus = Mockery::mock(IndexStatusInspectionResult::class);
+        $indexStatus->shouldReceive('getVerdict')->andReturn('PASS');
+        $indexStatus->shouldReceive('getCoverageState')->andReturn('Submitted and indexed');
+        $indexStatus->shouldReceive('getRobotsTxtState')->andReturn('ALLOWED');
+        $indexStatus->shouldReceive('getIndexingState')->andReturn('INDEXING_ALLOWED');
+        $indexStatus->shouldReceive('getLastCrawlTime')->andReturn(null);
+        $indexStatus->shouldReceive('getPageFetchState')->andReturn('SUCCESSFUL');
+        $indexStatus->shouldReceive('getCrawledAs')->andReturn('MOBILE');
+        $indexStatus->shouldReceive('getGoogleCanonical')->andReturn('https://example.com/retry');
+        $indexStatus->shouldReceive('getUserCanonical')->andReturn('https://example.com/retry');
+
+        $mobileUsability = Mockery::mock(MobileUsabilityInspectionResult::class);
+        $mobileUsability->shouldReceive('getVerdict')->andReturn('PASS');
+        $mobileUsability->shouldReceive('getIssues')->andReturn([]);
+
+        $inspectionResult = Mockery::mock(GoogleUrlInspectionResult::class);
+        $inspectionResult->shouldReceive('getInspectionResultLink')->andReturn('');
+        $inspectionResult->shouldReceive('getIndexStatusResult')->andReturn($indexStatus);
+        $inspectionResult->shouldReceive('getMobileUsabilityResult')->andReturn($mobileUsability);
+
+        $inspectResponse = Mockery::mock(InspectUrlIndexResponse::class);
+        $inspectResponse->shouldReceive('getInspectionResult')->andReturn($inspectionResult);
+
+        $counter = new class () {
+
+            private int $value = 0;
+
+            public function increment(): void
+            {
+                $this->value++;
+            }
+
+            public function getValue(): int
+            {
+                return $this->value;
+            }
+
+        };
+        $urlInspectionResource = Mockery::mock(SearchConsoleService\Resource\UrlInspectionIndex::class);
+        $urlInspectionResource->shouldReceive('inspect')
+            ->andReturnUsing(static function () use ($counter, $inspectResponse): InspectUrlIndexResponse {
+                $counter->increment();
+
+                if ($counter->getValue() <= 2) {
+                    throw new GoogleServiceException('Quota exceeded', 429);
+                }
+
+                return $inspectResponse;
+            });
+
+        $searchConsoleService = Mockery::mock(SearchConsoleService::class);
+        $searchConsoleService->urlInspection_index = $urlInspectionResource;
+
+        $reflection = new ReflectionClass($console);
+        $property = $reflection->getProperty('searchConsoleService');
+        $property->setValue($console, $searchConsoleService);
+
+        $result = $console->inspectBatchUrls(
+            'https://example.com/',
+            ['https://example.com/retry'],
+        );
+
+        expect($result->perUrlResults['https://example.com/retry']->status)->toBe(IndexingCheckStatus::INDEXED)
+            ->and($result->perUrlResults['https://example.com/retry']->failureType)->toBeNull()
+            ->and($counter->getValue())->toBe(3);
+    });
+
+    it('inspectBatchUrls throws hard failure for 403 forbidden', function (): void {
+        $console = createGoogleConsole(createBatchConfig());
+
+        $urlInspectionResource = Mockery::mock(SearchConsoleService\Resource\UrlInspectionIndex::class);
+        $urlInspectionResource->shouldReceive('inspect')
+            ->andThrow(new GoogleServiceException('Permission denied', 403));
+
+        $searchConsoleService = Mockery::mock(SearchConsoleService::class);
+        $searchConsoleService->urlInspection_index = $urlInspectionResource;
+
+        $reflection = new ReflectionClass($console);
+        $property = $reflection->getProperty('searchConsoleService');
+        $property->setValue($console, $searchConsoleService);
+
+        $console->inspectBatchUrls(
+            'https://example.com/',
+            ['https://example.com/forbidden'],
+        );
+    })->throws(GoogleConsoleFailure::class, 'URL inspection failed');
+
+    it('inspectBatchUrls throws hard failure without batch config', function (): void {
+        $console = createGoogleConsole();
+
+        $urlInspectionResource = Mockery::mock(SearchConsoleService\Resource\UrlInspectionIndex::class);
+        $urlInspectionResource->shouldReceive('inspect')
+            ->andThrow(new GoogleServiceException('Quota exceeded', 429));
+
+        $searchConsoleService = Mockery::mock(SearchConsoleService::class);
+        $searchConsoleService->urlInspection_index = $urlInspectionResource;
+
+        $reflection = new ReflectionClass($console);
+        $property = $reflection->getProperty('searchConsoleService');
+        $property->setValue($console, $searchConsoleService);
+
+        $console->inspectBatchUrls(
+            'https://example.com/',
+            ['https://example.com/page'],
+        );
+    })->throws(GoogleConsoleFailure::class, 'URL inspection failed');
+
+    it('inspectBatchUrls applies cooldown between retries', function (): void {
+        $tracker = new class () {
+
+            /**
+             * @var array<int, int>
+             */
+            private array $calls = [];
+
+            public function record(int $seconds): void
+            {
+                $this->calls[] = $seconds;
+            }
+
+            /**
+             * @return array<int, int>
+             */
+            public function getCalls(): array
+            {
+                return $this->calls;
+            }
+
+        };
+        $batchConfig = new BatchConfig(
+            maxBatchSize: 10,
+            cooldownSeconds: 3,
+            maxRetries: 2,
+            sleepFunction: static function (int $seconds) use ($tracker): void {
+                $tracker->record($seconds);
+            },
+        );
+        $console = createGoogleConsole($batchConfig);
+
+        $urlInspectionResource = Mockery::mock(SearchConsoleService\Resource\UrlInspectionIndex::class);
+        $urlInspectionResource->shouldReceive('inspect')
+            ->andThrow(new GoogleServiceException('Quota exceeded', 429));
+
+        $searchConsoleService = Mockery::mock(SearchConsoleService::class);
+        $searchConsoleService->urlInspection_index = $urlInspectionResource;
+
+        $reflection = new ReflectionClass($console);
+        $property = $reflection->getProperty('searchConsoleService');
+        $property->setValue($console, $searchConsoleService);
+
+        $result = $console->inspectBatchUrls(
+            'https://example.com/',
+            ['https://example.com/cooldown'],
+        );
+
+        expect($tracker->getCalls())->toBe([3, 3])
+            ->and($result->perUrlResults['https://example.com/cooldown']->isSoftFailure())->toBeTrue();
+    });
+
+    it('inspectBatchUrls handles mix of successful and soft failure urls', function (): void {
+        $console = createGoogleConsole(createBatchConfig(maxRetries: 0));
+
+        $indexStatus = Mockery::mock(IndexStatusInspectionResult::class);
+        $indexStatus->shouldReceive('getVerdict')->andReturn('PASS');
+        $indexStatus->shouldReceive('getCoverageState')->andReturn('Submitted and indexed');
+        $indexStatus->shouldReceive('getRobotsTxtState')->andReturn('ALLOWED');
+        $indexStatus->shouldReceive('getIndexingState')->andReturn('INDEXING_ALLOWED');
+        $indexStatus->shouldReceive('getLastCrawlTime')->andReturn(null);
+        $indexStatus->shouldReceive('getPageFetchState')->andReturn('SUCCESSFUL');
+        $indexStatus->shouldReceive('getCrawledAs')->andReturn('MOBILE');
+        $indexStatus->shouldReceive('getGoogleCanonical')->andReturn('https://example.com/ok');
+        $indexStatus->shouldReceive('getUserCanonical')->andReturn('https://example.com/ok');
+
+        $mobileUsability = Mockery::mock(MobileUsabilityInspectionResult::class);
+        $mobileUsability->shouldReceive('getVerdict')->andReturn('PASS');
+        $mobileUsability->shouldReceive('getIssues')->andReturn([]);
+
+        $inspectionResult = Mockery::mock(GoogleUrlInspectionResult::class);
+        $inspectionResult->shouldReceive('getInspectionResultLink')->andReturn('');
+        $inspectionResult->shouldReceive('getIndexStatusResult')->andReturn($indexStatus);
+        $inspectionResult->shouldReceive('getMobileUsabilityResult')->andReturn($mobileUsability);
+
+        $inspectResponse = Mockery::mock(InspectUrlIndexResponse::class);
+        $inspectResponse->shouldReceive('getInspectionResult')->andReturn($inspectionResult);
+
+        $urlInspectionResource = Mockery::mock(SearchConsoleService\Resource\UrlInspectionIndex::class);
+        $urlInspectionResource->shouldReceive('inspect')
+            ->andReturnUsing(static function (InspectUrlIndexRequest $request) use ($inspectResponse): InspectUrlIndexResponse {
+                if ($request->getInspectionUrl() === 'https://example.com/fail') {
+                    throw new GoogleServiceException('Quota exceeded', 429);
+                }
+
+                return $inspectResponse;
+            });
+
+        $searchConsoleService = Mockery::mock(SearchConsoleService::class);
+        $searchConsoleService->urlInspection_index = $urlInspectionResource;
+
+        $reflection = new ReflectionClass($console);
+        $property = $reflection->getProperty('searchConsoleService');
+        $property->setValue($console, $searchConsoleService);
+
+        $result = $console->inspectBatchUrls(
+            'https://example.com/',
+            ['https://example.com/ok', 'https://example.com/fail'],
+        );
+
+        expect($result->perUrlResults)->toHaveCount(2)
+            ->and($result->perUrlResults['https://example.com/ok']->status)->toBe(IndexingCheckStatus::INDEXED)
+            ->and($result->perUrlResults['https://example.com/ok']->failureType)->toBeNull()
+            ->and($result->perUrlResults['https://example.com/fail']->status)->toBe(IndexingCheckStatus::UNKNOWN)
+            ->and($result->perUrlResults['https://example.com/fail']->failureType)->toBe(FailureType::SOFT)
+            ->and($result->aggregation->indexedCount)->toBe(1)
+            ->and($result->aggregation->unknownCount)->toBe(1);
+    });
+
+    it('inspectBatchUrls maps 408 to timeout reason code', function (): void {
+        $console = createGoogleConsole(createBatchConfig(maxRetries: 0));
+
+        $urlInspectionResource = Mockery::mock(SearchConsoleService\Resource\UrlInspectionIndex::class);
+        $urlInspectionResource->shouldReceive('inspect')
+            ->andThrow(new GoogleServiceException('Request timeout', 408));
+
+        $searchConsoleService = Mockery::mock(SearchConsoleService::class);
+        $searchConsoleService->urlInspection_index = $urlInspectionResource;
+
+        $reflection = new ReflectionClass($console);
+        $property = $reflection->getProperty('searchConsoleService');
+        $property->setValue($console, $searchConsoleService);
+
+        $result = $console->inspectBatchUrls(
+            'https://example.com/',
+            ['https://example.com/timeout'],
+        );
+
+        expect($result->perUrlResults['https://example.com/timeout']->result->indexingCheckResult?->reasonCodes[0])
+            ->toBe(IndexingCheckReasonCode::TIMEOUT);
     });
 
     it('compareIndexingRuns returns changes and deltas between two runs', function (): void {
