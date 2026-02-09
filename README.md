@@ -18,7 +18,7 @@ A modern PHP wrapper for the Google Search Console API, providing typed DTOs, cl
 ## Features
 
 - **URL Inspection** – Index status, verdict, coverage state, mobile usability; optional **business output model** (primary status INDEXED/NOT_INDEXED/UNKNOWN, confidence, reason codes, source type authoritative/heuristic)
-- **Batch URL Inspection** – Inspect multiple URLs in one call; get per-URL results, aggregation (INDEXED/NOT_INDEXED/UNKNOWN counts, reason code overview), and optional **critical URLs** with batch verdict (FAIL if any critical URL is NOT_INDEXED)
+- **Batch URL Inspection** – Inspect multiple URLs in one call; get per-URL results, aggregation (INDEXED/NOT_INDEXED/UNKNOWN counts, reason code overview), and optional **critical URLs** with batch verdict (FAIL if any critical URL is NOT_INDEXED). Configurable batch size limits, cooldown with retries for temporary errors, and hard/soft failure distinction
 - **Indexing run comparison** – Compare two indexing runs (e.g. previous vs current); get list of changes (NEWLY_INDEXED, DROPPED_FROM_INDEX, BECAME_UNKNOWN, RECOVERED_FROM_UNKNOWN), delta counts by status, and dominant reason codes from the current run
 - **Operating mode** – `strict` (default: never INDEXED high without authoritative data) or `best-effort` (allows heuristic INDEXED with HEURISTIC_ONLY when inconclusive)
 - **URL normalization** – Optional normalizer for API calls: remove fragment, trailing slash (preserve/add/remove), strip `utm_*` and `gclid`. Configurable via `UrlNormalizationRules`; use normalized URLs for `inspectUrl` and `requestIndexing` (e.g. batch comparison and deduplication)
@@ -158,6 +158,48 @@ foreach ($result->criticalUrlResults as $perUrl) {
 
 For large URL sets, consider chunking or running in a background job to avoid timeouts and API rate limits.
 
+### Batch Configuration (Limits, Cooldown, Failure Handling)
+
+Pass a `BatchConfig` to `GoogleConsole` to enable:
+- **Batch size limits** – reject batches that exceed a configurable maximum (hard failure)
+- **Cooldown with retries** – automatically wait and retry on temporary API errors (rate limit, timeout, server error)
+- **Soft failure handling** – record unreachable URLs as `UNKNOWN` with a reason code instead of throwing
+
+```php
+use Pekral\GoogleConsole\Config\BatchConfig;
+use Pekral\GoogleConsole\GoogleConsole;
+
+$console = new GoogleConsole($client, batchConfig: new BatchConfig(
+    maxBatchSize: 50,       // max URLs per batch (default: 100)
+    cooldownSeconds: 10,    // wait between retries (default: 5)
+    maxRetries: 3,          // retry attempts for soft failures (default: 2)
+));
+
+// Hard failure: batch exceeds maxBatchSize → throws BatchSizeLimitExceeded
+// Soft failure: rate limit / timeout / server error → recorded as UNKNOWN
+
+$result = $console->inspectBatchUrls('https://example.com/', $urls);
+
+foreach ($result->perUrlResults as $url => $perUrl) {
+    if ($perUrl->isSoftFailure()) {
+        echo $url . ' => soft failure (reason: '
+            . $perUrl->result->indexingCheckResult?->reasonCodes[0]->value . ')' . PHP_EOL;
+    } else {
+        echo $url . ' => ' . $perUrl->status->value . PHP_EOL;
+    }
+}
+```
+
+**Without `BatchConfig`**, the library behaves exactly as before (no limits, no retries, exceptions propagate).
+
+**Failure types:**
+| HTTP Code | Type | Reason Code | Behavior |
+|-----------|------|-------------|----------|
+| 429 | Soft | `RATE_LIMITED` | Cooldown + retry, then record as UNKNOWN |
+| 408, 504 | Soft | `TIMEOUT` | Cooldown + retry, then record as UNKNOWN |
+| 500, 502, 503 | Soft | `INSUFFICIENT_DATA` | Cooldown + retry, then record as UNKNOWN |
+| 400, 403, 404, … | Hard | — | Exception thrown immediately |
+
 ### Compare Indexing Runs
 
 Compares two indexing runs (e.g. previous vs current) and returns changes, deltas and dominant reason codes. Only URLs present in **both** runs are compared.
@@ -272,6 +314,21 @@ try {
 } catch (GoogleConsoleFailure $e) {
     echo $e->getMessage();
     // Output: Failed to get site 'https://nonexistent.com/': Site not found (reason: notFound)
+}
+```
+
+### Batch Size Limit
+
+When using `BatchConfig`, exceeding the batch size throws `BatchSizeLimitExceeded`:
+
+```php
+use Pekral\GoogleConsole\Exception\BatchSizeLimitExceeded;
+
+try {
+    $result = $console->inspectBatchUrls('https://example.com/', $tooManyUrls);
+} catch (BatchSizeLimitExceeded $e) {
+    echo $e->getMessage();
+    // Output: Batch size 150 exceeds maximum of 100 URLs
 }
 ```
 

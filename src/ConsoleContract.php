@@ -71,7 +71,8 @@ interface ConsoleContract
      * @param array<int, string> $urls URLs to inspect
      * @param array<int, string> $criticalUrls Subset of URLs that must be INDEXED for batch to PASS
      * @param \Pekral\GoogleConsole\Enum\OperatingMode|null $operatingMode strict (default) or best-effort
-     * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure
+     * @throws \Pekral\GoogleConsole\Exception\BatchSizeLimitExceeded When batch size exceeds configured maximum
+     * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure When a hard failure occurs
      */
     public function inspectBatchUrls(
         string $siteUrl,

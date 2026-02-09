@@ -193,6 +193,33 @@ describe(UrlInspectionResult::class, function (): void {
             ->and($array['isCrawlable'])->toBeTrue();
     });
 
+    it('creates soft failure result with rate limited reason code', function (): void {
+        $result = UrlInspectionResult::forSoftFailure(IndexingCheckReasonCode::RATE_LIMITED);
+
+        expect($result->verdict)->toBe('VERDICT_UNSPECIFIED')
+            ->and($result->inspectionResultLink)->toBe('')
+            ->and($result->coverageState)->toBe('')
+            ->and($result->isMobileFriendly)->toBeFalse()
+            ->and($result->indexingCheckResult)->not->toBeNull()
+            ->and($result->indexingCheckResult?->primaryStatus)->toBe(IndexingCheckStatus::UNKNOWN)
+            ->and($result->indexingCheckResult?->confidence)->toBe(IndexingCheckConfidence::LOW)
+            ->and($result->indexingCheckResult?->sourceType)->toBe(IndexingCheckSourceType::HEURISTIC)
+            ->and($result->indexingCheckResult?->reasonCodes)->toHaveCount(1)
+            ->and($result->indexingCheckResult?->reasonCodes[0])->toBe(IndexingCheckReasonCode::RATE_LIMITED);
+    });
+
+    it('creates soft failure result with timeout reason code', function (): void {
+        $result = UrlInspectionResult::forSoftFailure(IndexingCheckReasonCode::TIMEOUT);
+
+        expect($result->indexingCheckResult?->reasonCodes[0])->toBe(IndexingCheckReasonCode::TIMEOUT);
+    });
+
+    it('creates soft failure result with insufficient data reason code', function (): void {
+        $result = UrlInspectionResult::forSoftFailure(IndexingCheckReasonCode::INSUFFICIENT_DATA);
+
+        expect($result->indexingCheckResult?->reasonCodes[0])->toBe(IndexingCheckReasonCode::INSUFFICIENT_DATA);
+    });
+
     it('includes indexingCheckResult in toArray when present', function (): void {
         $checkedAt = new DateTimeImmutable('2024-01-15T10:30:00+00:00');
         $indexingCheckResult = new IndexingCheckResult(

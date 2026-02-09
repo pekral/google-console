@@ -6,7 +6,7 @@ namespace Pekral\GoogleConsole\Exception;
 
 use Exception;
 
-final class GoogleConsoleFailure extends Exception
+class GoogleConsoleFailure extends Exception
 {
 
 }
