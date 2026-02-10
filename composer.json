@@ -30,8 +30,8 @@
         "google/apiclient": "^2.19"
     },
     "require-dev": {
-        "ergebnis/composer-normalize": "^2.49.0",
-        "laravel/pint": "^1.27.0",
+        "ergebnis/composer-normalize": "^2.50.0",
+        "laravel/pint": "^1.27.1",
         "mockery/mockery": "^1.6.12",
         "nunomaduro/termwind": "^2.3.3",
         "pekral/cursor-rules": "dev-master",
@@ -43,7 +43,7 @@
         "phpstan/phpstan": "^2.1.38",
         "phpstan/phpstan-deprecation-rules": "^2.0.3",
         "phpstan/phpstan-mockery": "^2.0",
-        "phpstan/phpstan-phpunit": "^2.0.13",
+        "phpstan/phpstan-phpunit": "^2.0.14",
         "roave/security-advisories": "dev-latest",
         "squizlabs/php_codesniffer": ">=4.0.1",
         "symfony/console": "^7.4.4"
