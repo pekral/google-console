@@ -9,6 +9,7 @@ use Pekral\GoogleConsole\Enum\IndexingCheckConfidence;
 use Pekral\GoogleConsole\Enum\IndexingCheckReasonCode;
 use Pekral\GoogleConsole\Enum\IndexingCheckSourceType;
 use Pekral\GoogleConsole\Enum\IndexingCheckStatus;
+use Pekral\GoogleConsole\Helper\IndexingCheckRecommendationProvider;
 
 final readonly class UrlInspectionResult
 {
@@ -111,6 +112,7 @@ final readonly class UrlInspectionResult
                 reasonCodes: [$reasonCode],
                 checkedAt: new DateTimeImmutable(),
                 sourceType: IndexingCheckSourceType::HEURISTIC,
+                recommendations: IndexingCheckRecommendationProvider::getRecommendations([$reasonCode]),
             ),
         );
     }
@@ -147,7 +149,7 @@ final readonly class UrlInspectionResult
      *     isIndexed: bool,
      *     isIndexable: bool,
      *     isCrawlable: bool,
-     *     indexingCheckResult?: array{primaryStatus: string, confidence: string, reason_codes: list<string>, checked_at: string, source_type: string}
+     *     indexingCheckResult?: array{primaryStatus: string, confidence: string, reason_codes: list<string>, checked_at: string, source_type: string, recommendations: list<string>}
      * }
      */
     public function toArray(): array

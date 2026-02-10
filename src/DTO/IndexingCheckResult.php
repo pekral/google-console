@@ -15,6 +15,7 @@ final readonly class IndexingCheckResult
 
     /**
      * @param list<\Pekral\GoogleConsole\Enum\IndexingCheckReasonCode> $reasonCodes
+     * @param list<string> $recommendations
      */
     public function __construct(
         public IndexingCheckStatus $primaryStatus,
@@ -22,6 +23,7 @@ final readonly class IndexingCheckResult
         public array $reasonCodes,
         public DateTimeImmutable $checkedAt,
         public IndexingCheckSourceType $sourceType,
+        public array $recommendations = [],
     ) {
     }
 
@@ -31,7 +33,8 @@ final readonly class IndexingCheckResult
      *     confidence: string,
      *     reason_codes: list<string>,
      *     checked_at: string,
-     *     source_type: string
+     *     source_type: string,
+     *     recommendations: list<string>
      * }
      */
     public function toArray(): array
@@ -41,6 +44,7 @@ final readonly class IndexingCheckResult
             'confidence' => $this->confidence->value,
             'primaryStatus' => $this->primaryStatus->value,
             'reason_codes' => array_map(static fn (IndexingCheckReasonCode $code): string => $code->value, $this->reasonCodes),
+            'recommendations' => $this->recommendations,
             'source_type' => $this->sourceType->value,
         ];
     }

@@ -75,7 +75,8 @@ describe(IndexingCheckResultDataBuilder::class, function (): void {
         $result = $mapper->fromIndexStatusData($indexStatus);
 
         expect($result->primaryStatus)->toBe(IndexingCheckStatus::NOT_INDEXED)
-            ->and($result->reasonCodes)->toContain(IndexingCheckReasonCode::META_NOINDEX);
+            ->and($result->reasonCodes)->toContain(IndexingCheckReasonCode::META_NOINDEX)
+            ->and($result->recommendations)->toContain('Remove meta noindex or allow indexing in page meta tags.');
     });
 
     it('returns NOT_INDEXED with META_NOINDEX when blocked by noindex', function () use ($mapper): void {

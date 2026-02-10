@@ -17,7 +17,7 @@ A modern PHP wrapper for the Google Search Console API, providing typed DTOs, cl
 
 ## Features
 
-- **URL Inspection** – Index status, verdict, coverage state, mobile usability; optional **business output model** (primary status INDEXED/NOT_INDEXED/UNKNOWN, confidence, reason codes, source type authoritative/heuristic)
+- **URL Inspection** – Index status, verdict, coverage state, mobile usability; optional **business output model** (primary status INDEXED/NOT_INDEXED/UNKNOWN, confidence, reason codes, **human-readable recommendations** derived from reason codes, source type authoritative/heuristic)
 - **Batch URL Inspection** – Inspect multiple URLs in one call; get per-URL results, aggregation (INDEXED/NOT_INDEXED/UNKNOWN counts, reason code overview), and optional **critical URLs** with batch verdict (FAIL if any critical URL is NOT_INDEXED). Configurable batch size limits, cooldown with retries for temporary errors, and hard/soft failure distinction
 - **Indexing run comparison** – Compare two indexing runs (e.g. previous vs current); get list of changes (NEWLY_INDEXED, DROPPED_FROM_INDEX, BECAME_UNKNOWN, RECOVERED_FROM_UNKNOWN), delta counts by status, and dominant reason codes from the current run
 - **Operating mode** – `strict` (default: never INDEXED high without authoritative data) or `best-effort` (allows heuristic INDEXED with HEURISTIC_ONLY when inconclusive)
@@ -120,6 +120,10 @@ if ($inspection->indexingCheckResult !== null) {
     echo 'Primary status: ' . $check->primaryStatus->value . PHP_EOL;  // INDEXED | NOT_INDEXED | UNKNOWN
     echo 'Confidence: ' . $check->confidence->value . PHP_EOL;
     echo 'Source type: ' . $check->sourceType->value . PHP_EOL;  // authoritative | heuristic
+
+    foreach ($check->recommendations as $rec) {
+        echo 'Recommendation: ' . $rec . PHP_EOL;  // actionable steps from reason codes
+    }
 }
 ```
 

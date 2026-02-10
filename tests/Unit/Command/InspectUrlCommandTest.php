@@ -276,6 +276,7 @@ describe(InspectUrlCommand::class, function (): void {
             reasonCodes: [IndexingCheckReasonCode::NOT_INDEXED_CONFIRMED, IndexingCheckReasonCode::META_NOINDEX],
             checkedAt: new DateTimeImmutable('2024-06-01 12:00:00'),
             sourceType: IndexingCheckSourceType::AUTHORITATIVE,
+            recommendations: ['Remove meta noindex or allow indexing in page meta tags.'],
         );
 
         $result = new UrlInspectionResult(
@@ -312,7 +313,9 @@ describe(InspectUrlCommand::class, function (): void {
         expect($tester->getStatusCode())->toBe(Command::SUCCESS)
             ->and($display)->toContain('Business output (indexing check)')
             ->and($display)->toContain('NOT_INDEXED')
-            ->and($display)->toContain('META_NOINDEX');
+            ->and($display)->toContain('META_NOINDEX')
+            ->and($display)->toContain('Recommendations')
+            ->and($display)->toContain('Remove meta noindex');
     });
 
     it('displays business output with UNKNOWN primary status', function (): void {

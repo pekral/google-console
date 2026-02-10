@@ -17,6 +17,7 @@ declare(strict_types = 1);
  * - primaryStatus: INDEXED | NOT_INDEXED | UNKNOWN
  * - confidence: high | medium | low
  * - reason_codes: list of machine-readable reasons (e.g. INDEXED_CONFIRMED, ROBOTS_BLOCKED)
+ * - recommendations: human-readable, actionable suggestions derived from reason codes (e.g. meta noindex, robots.txt)
  * - checked_at: timestamp of evaluation
  * - source_type: authoritative | heuristic
  *
@@ -62,3 +63,13 @@ echo sprintf(
 );
 echo sprintf("Checked at:     %s  (when this evaluation was performed)\n", $check->checkedAt->format('Y-m-d H:i:s'));
 echo sprintf("Source type:    %s  (authoritative = from API, heuristic = inferred)\n", $check->sourceType->value);
+
+if ($check->recommendations !== []) {
+    echo "Recommendations: (actionable steps derived from reason codes)\n";
+
+    foreach ($check->recommendations as $i => $rec) {
+        echo sprintf("  %d. %s\n", $i + 1, $rec);
+    }
+} else {
+    echo "Recommendations: (none – no actionable reason codes for this result)\n";
+}

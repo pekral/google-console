@@ -11,6 +11,7 @@ use Pekral\GoogleConsole\Enum\IndexingCheckReasonCode;
 use Pekral\GoogleConsole\Enum\IndexingCheckSourceType;
 use Pekral\GoogleConsole\Enum\IndexingCheckStatus;
 use Pekral\GoogleConsole\Enum\OperatingMode;
+use Pekral\GoogleConsole\Helper\IndexingCheckRecommendationProvider;
 
 final class IndexingCheckResultDataBuilder
 {
@@ -102,12 +103,15 @@ final class IndexingCheckResultDataBuilder
         DateTimeImmutable $checkedAt,
         IndexingCheckSourceType $sourceType,
     ): IndexingCheckResult {
+        $recommendations = IndexingCheckRecommendationProvider::getRecommendations($reasonCodes);
+
         return new IndexingCheckResult(
             primaryStatus: $primaryStatus,
             confidence: $confidence,
             reasonCodes: $reasonCodes,
             checkedAt: $checkedAt,
             sourceType: $sourceType,
+            recommendations: $recommendations,
         );
     }
 

@@ -21,8 +21,9 @@ php examples/<name>.php
 | [list-sites.php](list-sites.php) | `pekral:google-sites-list` | List all sites from Search Console |
 | [get-site.php](get-site.php) | `pekral:google-site-get` | Get site details for https://pekral.cz/ |
 | [search-analytics.php](search-analytics.php) | `pekral:google-analytics-search` | Search analytics (30 days, query dimension) |
-| [inspect-url.php](inspect-url.php) | `pekral:google-url-inspect` | Inspect URL: indexing status, **business output** (primary status, confidence, reason codes), mobile usability. Option: `--mode=strict` \| `--mode=best-effort` |
-| [inspect-url-business-model.php](inspect-url-business-model.php) | — | Programmatic: call `inspectUrl()` with **URL normalizer** and print the **indexing check result** (primary status, confidence, reason_codes, checked_at, source_type). Uses `UrlNormalizationRules::forApiCalls()`. |
+| [inspect-url.php](inspect-url.php) | `pekral:google-url-inspect` | Inspect URL: indexing status, **business output** (primary status, confidence, reason codes, **recommendations**), mobile usability. Option: `--mode=strict` \| `--mode=best-effort` |
+| [inspect-url-business-model.php](inspect-url-business-model.php) | — | Programmatic: call `inspectUrl()` with **URL normalizer** and print the **indexing check result** (primary status, confidence, reason_codes, **recommendations**, checked_at, source_type). Uses `UrlNormalizationRules::forApiCalls()`. |
+| [inspect-url-recommendations.php](inspect-url-recommendations.php) | — | Programmatic: call `inspectUrl()` and print **human-readable recommendations** derived from reason codes (e.g. meta noindex, robots.txt, indexing in GSC). Use for reports or dashboards. |
 | [inspect-batch-urls.php](inspect-batch-urls.php) | — | Programmatic: call `inspectBatchUrls()` with a list of URLs and optional **critical URLs**. Prints per-URL results, aggregation (indexed/not indexed/unknown counts, reason code overview), critical URL statuses, and batch verdict (PASS/FAIL). Option: `--critical=url1,url2` |
 | [compare-indexing-runs.php](compare-indexing-runs.php) | — | Programmatic: run `inspectBatchUrls()` twice and call `compareIndexingRuns()`. Prints changes (NEWLY_INDEXED, DROPPED_FROM_INDEX, BECAME_UNKNOWN, RECOVERED_FROM_UNKNOWN), deltas by status, and dominant reason codes. For monitoring: store first run and compare with a later run. |
 | [request-indexing.php](request-indexing.php) | `pekral:google-request-indexing` | Request indexing for a chosen URL |
@@ -37,12 +38,13 @@ The URL inspection command and API response include an optional **business outpu
 - **Primary status:** `INDEXED` \| `NOT_INDEXED` \| `UNKNOWN`
 - **Confidence:** `high` \| `medium` \| `low`
 - **Reason codes:** machine-readable list (e.g. `INDEXED_CONFIRMED`, `ROBOTS_BLOCKED`, `META_NOINDEX`)
+- **Recommendations:** human-readable, actionable suggestions derived from reason codes (e.g. “Remove meta noindex…”, “Allow crawling in robots.txt…”); especially useful for NOT_INDEXED/UNKNOWN results
 - **Checked at:** timestamp of evaluation
 - **Source type:** `authoritative` \| `heuristic`
 
 **Operating mode:** Use `--mode=strict` (default; never INDEXED high without authoritative data) or `--mode=best-effort` (allows heuristic INDEXED with `HEURISTIC_ONLY` when data is inconclusive). When using the API, pass `OperatingMode::STRICT` or `OperatingMode::BEST_EFFORT` as the third argument to `inspectUrl()`.
 
-Use [inspect-url.php](inspect-url.php) to see it in the CLI output (section "Business output (indexing check)"). Use [inspect-url-business-model.php](inspect-url-business-model.php) to access it in your own code via `$result->indexingCheckResult` (with URL normalizer applied before the API call).
+Use [inspect-url.php](inspect-url.php) to see it in the CLI output (section "Business output (indexing check)"). Use [inspect-url-business-model.php](inspect-url-business-model.php) to access it in your own code via `$result->indexingCheckResult` (with URL normalizer applied before the API call). Use [inspect-url-recommendations.php](inspect-url-recommendations.php) to focus on **recommendations** (actionable steps from reason codes) for reports or dashboards.
 
 ### Batch URL inspection
 

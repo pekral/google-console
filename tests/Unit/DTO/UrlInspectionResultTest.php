@@ -217,7 +217,8 @@ describe(UrlInspectionResult::class, function (): void {
     it('creates soft failure result with insufficient data reason code', function (): void {
         $result = UrlInspectionResult::forSoftFailure(IndexingCheckReasonCode::INSUFFICIENT_DATA);
 
-        expect($result->indexingCheckResult?->reasonCodes[0])->toBe(IndexingCheckReasonCode::INSUFFICIENT_DATA);
+        expect($result->indexingCheckResult?->reasonCodes[0])->toBe(IndexingCheckReasonCode::INSUFFICIENT_DATA)
+            ->and($result->indexingCheckResult?->recommendations)->toContain('Request URL inspection or indexing in GSC for fresh data.');
     });
 
     it('includes indexingCheckResult in toArray when present', function (): void {
@@ -240,6 +241,7 @@ describe(UrlInspectionResult::class, function (): void {
         expect($array)->toHaveKey('indexingCheckResult')
             ->and($array['indexingCheckResult']['primaryStatus'])->toBe('INDEXED')
             ->and($array['indexingCheckResult']['reason_codes'])->toContain('INDEXED_CONFIRMED')
-            ->and($array['indexingCheckResult']['checked_at'])->toBe('2024-01-15T10:30:00+00:00');
+            ->and($array['indexingCheckResult']['checked_at'])->toBe('2024-01-15T10:30:00+00:00')
+            ->and($array['indexingCheckResult'])->toHaveKey('recommendations');
     });
 });

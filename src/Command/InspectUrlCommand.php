@@ -84,6 +84,10 @@ final class InspectUrlCommand extends BaseGoogleConsoleCommand
         $out->keyValue('Reason codes', $reasonCodesList !== '' ? $reasonCodesList : 'none');
         $out->keyValue('Checked at', $check->checkedAt->format('Y-m-d H:i:s'));
         $out->keyValue('Source type', $check->sourceType->value);
+
+        if ($check->recommendations !== []) {
+            $out->keyValue('Recommendations', implode(' • ', $check->recommendations));
+        }
     }
 
     private function displayIndexingStatus(ConsoleOutput $out, UrlInspectionResult $result): void
