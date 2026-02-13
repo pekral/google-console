@@ -40,10 +40,10 @@
         "pestphp/pest": "^4.3.2",
         "pestphp/pest-plugin-type-coverage": "^4.0.3",
         "phpstan/extension-installer": "^1.4.3",
-        "phpstan/phpstan": "^2.1.38",
-        "phpstan/phpstan-deprecation-rules": "^2.0.3",
+        "phpstan/phpstan": "^2.1.39",
+        "phpstan/phpstan-deprecation-rules": "^2.0.4",
         "phpstan/phpstan-mockery": "^2.0",
-        "phpstan/phpstan-phpunit": "^2.0.14",
+        "phpstan/phpstan-phpunit": "^2.0.15",
         "roave/security-advisories": "dev-latest",
         "squizlabs/php_codesniffer": ">=4.0.1",
         "symfony/console": "^7.4.4"
@@ -64,6 +64,7 @@
         "allow-plugins": {
             "dealerdirect/phpcodesniffer-composer-installer": true,
             "ergebnis/composer-normalize": true,
+            "pekral/cursor-rules": true,
             "pestphp/pest-plugin": true,
             "phpstan/extension-installer": false
         },
