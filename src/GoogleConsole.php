@@ -27,6 +27,7 @@ use Pekral\GoogleConsole\DataBuilder\UrlInspectionDataBuilder;
 use Pekral\GoogleConsole\DTO\BatchUrlInspectionResult;
 use Pekral\GoogleConsole\DTO\IndexingComparisonResult;
 use Pekral\GoogleConsole\DTO\IndexingResult;
+use Pekral\GoogleConsole\DTO\InspectionContext;
 use Pekral\GoogleConsole\DTO\PerUrlInspectionResult;
 use Pekral\GoogleConsole\DTO\SearchAnalyticsRow;
 use Pekral\GoogleConsole\DTO\Site;
@@ -47,6 +48,7 @@ use Throwable;
  * Provides methods to retrieve site information, search analytics data,
  * and URL inspection results from Google Search Console.
  */
+// phpcs:ignore SlevomatCodingStandard.Classes.ClassLength.ClassTooLong -- optional InspectionContext; refactor in follow-up if needed
 final class GoogleConsole implements ConsoleContract
 {
 
@@ -152,16 +154,23 @@ final class GoogleConsole implements ConsoleContract
      * @param string $siteUrl The site URL that owns the inspected page
      * @param string $inspectionUrl The full URL to inspect
      * @param \Pekral\GoogleConsole\Enum\OperatingMode|null $operatingMode strict (default) or best-effort
+     * @param \Pekral\GoogleConsole\DTO\InspectionContext|null $context optional request context (site, normalizer, mode)
      * @return \Pekral\GoogleConsole\DTO\UrlInspectionResult Detailed inspection result with indexing and mobile status
      * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure When the inspection request fails
      */
-    public function inspectUrl(string $siteUrl, string $inspectionUrl, ?OperatingMode $operatingMode = null): UrlInspectionResult
-    {
-        $inspectionUrl = $this->normalizeUrlIfConfigured($inspectionUrl);
+    public function inspectUrl(
+        string $siteUrl,
+        string $inspectionUrl,
+        ?OperatingMode $operatingMode = null,
+        ?InspectionContext $context = null,
+    ): UrlInspectionResult {
+        $effectiveSiteUrl = $context !== null ? ($context->siteUrl ?? $siteUrl) : $siteUrl;
+        $effectiveMode = $context !== null ? ($context->operatingMode ?? $operatingMode) : $operatingMode;
+        $inspectionUrl = $this->normalizeUrlWith($inspectionUrl, $context);
 
         $request = new InspectUrlIndexRequest();
         $request->setInspectionUrl($inspectionUrl);
-        $request->setSiteUrl($siteUrl);
+        $request->setSiteUrl($effectiveSiteUrl);
 
         try {
             $urlInspectionIndex = $this->getSearchConsoleService()->urlInspection_index;
@@ -173,7 +182,7 @@ final class GoogleConsole implements ConsoleContract
             $result = $response->getInspectionResult();
             assert($result instanceof GoogleUrlInspectionResult);
 
-            return $this->urlInspectionDataBuilder->fromGoogleResult($result, $operatingMode);
+            return $this->urlInspectionDataBuilder->fromGoogleResult($result, $effectiveMode);
         } catch (Exception $e) {
             throw new GoogleConsoleFailure(
                 $this->formatApiError($e, 'URL inspection failed'),
@@ -195,6 +204,7 @@ final class GoogleConsole implements ConsoleContract
      * @param array<int, string> $urls URLs to inspect
      * @param array<int, string> $criticalUrls Subset of URLs that must be INDEXED for batch to PASS
      * @param \Pekral\GoogleConsole\Enum\OperatingMode|null $operatingMode strict (default) or best-effort
+     * @param \Pekral\GoogleConsole\DTO\InspectionContext|null $context optional request context (site, normalizer, mode)
      * @throws \Pekral\GoogleConsole\Exception\BatchSizeLimitExceeded When batch size exceeds configured maximum
      * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure When a hard failure occurs
      */
@@ -203,17 +213,20 @@ final class GoogleConsole implements ConsoleContract
         array $urls,
         array $criticalUrls = [],
         ?OperatingMode $operatingMode = null,
+        ?InspectionContext $context = null,
     ): BatchUrlInspectionResult {
         if ($this->batchConfig !== null) {
             $this->dataValidator->validateBatchSize(count($urls), $this->batchConfig->maxBatchSize);
         }
 
+        $effectiveSiteUrl = $context !== null ? ($context->siteUrl ?? $siteUrl) : $siteUrl;
+        $effectiveMode = $context !== null ? ($context->operatingMode ?? $operatingMode) : $operatingMode;
         $criticalSet = array_flip($criticalUrls);
         $perUrlResultsList = [];
         $perUrlResultsByUrl = [];
 
         foreach ($urls as $url) {
-            $perUrl = $this->inspectSingleUrlForBatch($siteUrl, $url, $operatingMode);
+            $perUrl = $this->inspectSingleUrlForBatch($effectiveSiteUrl, $url, $effectiveMode, $context);
             $perUrlResultsList[] = $perUrl;
             $perUrlResultsByUrl[$url] = $perUrl;
         }
@@ -308,7 +321,12 @@ final class GoogleConsole implements ConsoleContract
         }
     }
 
-    private function inspectSingleUrlForBatch(string $siteUrl, string $url, ?OperatingMode $operatingMode): PerUrlInspectionResult {
+    private function inspectSingleUrlForBatch(
+        string $siteUrl,
+        string $url,
+        ?OperatingMode $operatingMode,
+        ?InspectionContext $context,
+    ): PerUrlInspectionResult {
         $maxAttempts = $this->batchConfig !== null
             ? $this->batchConfig->maxRetries + 1
             : 1;
@@ -316,7 +334,7 @@ final class GoogleConsole implements ConsoleContract
 
         for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
             try {
-                $result = $this->inspectUrl($siteUrl, $url, $operatingMode);
+                $result = $this->inspectUrl($siteUrl, $url, $operatingMode, $context);
 
                 return new PerUrlInspectionResult(
                     url: $url,
@@ -399,6 +417,17 @@ final class GoogleConsole implements ConsoleContract
         }
 
         return $this->urlNormalizer->normalize($url);
+    }
+
+    private function normalizeUrlWith(string $url, ?InspectionContext $context): string
+    {
+        $normalizer = $context !== null ? ($context->urlNormalizer ?? $this->urlNormalizer) : $this->urlNormalizer;
+
+        if ($normalizer === null) {
+            return $url;
+        }
+
+        return $normalizer->normalize($url);
     }
 
     private function formatApiError(Exception $e, string $context): string
