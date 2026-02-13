@@ -16,12 +16,14 @@ use Google\Service\Webmasters\SearchAnalyticsQueryResponse;
 use Google\Service\Webmasters\SitesListResponse;
 use Google\Service\Webmasters\WmxSite;
 use GuzzleHttp\Client as HttpClient;
+use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use Pekral\GoogleConsole\Config\BatchConfig;
 use Pekral\GoogleConsole\Config\GoogleConfig;
 use Pekral\GoogleConsole\DTO\BatchAggregation;
 use Pekral\GoogleConsole\DTO\BatchUrlInspectionResult;
 use Pekral\GoogleConsole\DTO\IndexingResult;
+use Pekral\GoogleConsole\DTO\InspectionContext;
 use Pekral\GoogleConsole\DTO\PerUrlInspectionResult;
 use Pekral\GoogleConsole\DTO\SearchAnalyticsRow;
 use Pekral\GoogleConsole\DTO\Site;
@@ -421,6 +423,144 @@ describe(GoogleConsole::class, function (): void {
             ->and($result->verdict)->toBe('PASS');
     });
 
+    it('inspectUrl uses context site url when context is provided', function (): void {
+        $console = createGoogleConsole();
+
+        $indexStatus = Mockery::mock(IndexStatusInspectionResult::class);
+        $indexStatus->shouldReceive('getVerdict')->andReturn('PASS');
+        $indexStatus->shouldReceive('getCoverageState')->andReturn('Submitted and indexed');
+        $indexStatus->shouldReceive('getRobotsTxtState')->andReturn('ALLOWED');
+        $indexStatus->shouldReceive('getIndexingState')->andReturn('INDEXING_ALLOWED');
+        $indexStatus->shouldReceive('getLastCrawlTime')->andReturn(null);
+        $indexStatus->shouldReceive('getPageFetchState')->andReturn('SUCCESSFUL');
+        $indexStatus->shouldReceive('getCrawledAs')->andReturn('MOBILE');
+        $indexStatus->shouldReceive('getGoogleCanonical')->andReturn('https://example.com/page');
+        $indexStatus->shouldReceive('getUserCanonical')->andReturn('https://example.com/page');
+
+        $mobileUsability = Mockery::mock(MobileUsabilityInspectionResult::class);
+        $mobileUsability->shouldReceive('getVerdict')->andReturn('PASS');
+        $mobileUsability->shouldReceive('getIssues')->andReturn([]);
+
+        $inspectionResult = Mockery::mock(GoogleUrlInspectionResult::class);
+        $inspectionResult->shouldReceive('getInspectionResultLink')->andReturn('');
+        $inspectionResult->shouldReceive('getIndexStatusResult')->andReturn($indexStatus);
+        $inspectionResult->shouldReceive('getMobileUsabilityResult')->andReturn($mobileUsability);
+
+        $inspectResponse = Mockery::mock(InspectUrlIndexResponse::class);
+        $inspectResponse->shouldReceive('getInspectionResult')->andReturn($inspectionResult);
+
+        $urlInspectionResource = Mockery::mock(SearchConsoleService\Resource\UrlInspectionIndex::class);
+        $urlInspectionResource->shouldReceive('inspect')
+            ->with(Mockery::on(static fn (InspectUrlIndexRequest $request): bool => $request->getSiteUrl() === 'sc-domain:example.com'
+                && $request->getInspectionUrl() === 'https://example.com/page'))
+            ->andReturn($inspectResponse);
+
+        $searchConsoleService = Mockery::mock(SearchConsoleService::class);
+        $searchConsoleService->urlInspection_index = $urlInspectionResource;
+
+        $reflection = new ReflectionClass($console);
+        $property = $reflection->getProperty('searchConsoleService');
+        $property->setValue($console, $searchConsoleService);
+
+        $context = new InspectionContext(siteUrl: 'sc-domain:example.com');
+        $result = $console->inspectUrl('https://example.com/', 'https://example.com/page', null, $context);
+
+        expect($result)->toBeInstanceOf(UrlInspectionResult::class)
+            ->and($result->verdict)->toBe('PASS');
+    });
+
+    it('inspectUrl uses context url normalizer when context is provided', function (): void {
+        $console = createGoogleConsole();
+
+        $indexStatus = Mockery::mock(IndexStatusInspectionResult::class);
+        $indexStatus->shouldReceive('getVerdict')->andReturn('PASS');
+        $indexStatus->shouldReceive('getCoverageState')->andReturn('Submitted and indexed');
+        $indexStatus->shouldReceive('getRobotsTxtState')->andReturn('ALLOWED');
+        $indexStatus->shouldReceive('getIndexingState')->andReturn('INDEXING_ALLOWED');
+        $indexStatus->shouldReceive('getLastCrawlTime')->andReturn(null);
+        $indexStatus->shouldReceive('getPageFetchState')->andReturn('SUCCESSFUL');
+        $indexStatus->shouldReceive('getCrawledAs')->andReturn('MOBILE');
+        $indexStatus->shouldReceive('getGoogleCanonical')->andReturn('https://example.com/page');
+        $indexStatus->shouldReceive('getUserCanonical')->andReturn('https://example.com/page');
+
+        $mobileUsability = Mockery::mock(MobileUsabilityInspectionResult::class);
+        $mobileUsability->shouldReceive('getVerdict')->andReturn('PASS');
+        $mobileUsability->shouldReceive('getIssues')->andReturn([]);
+
+        $inspectionResult = Mockery::mock(GoogleUrlInspectionResult::class);
+        $inspectionResult->shouldReceive('getInspectionResultLink')->andReturn('');
+        $inspectionResult->shouldReceive('getIndexStatusResult')->andReturn($indexStatus);
+        $inspectionResult->shouldReceive('getMobileUsabilityResult')->andReturn($mobileUsability);
+
+        $inspectResponse = Mockery::mock(InspectUrlIndexResponse::class);
+        $inspectResponse->shouldReceive('getInspectionResult')->andReturn($inspectionResult);
+
+        $urlInspectionResource = Mockery::mock(SearchConsoleService\Resource\UrlInspectionIndex::class);
+        $urlInspectionResource->shouldReceive('inspect')
+            ->with(Mockery::on(static fn (InspectUrlIndexRequest $request): bool => $request->getInspectionUrl() === 'https://example.com/page'))
+            ->andReturn($inspectResponse);
+
+        $searchConsoleService = Mockery::mock(SearchConsoleService::class);
+        $searchConsoleService->urlInspection_index = $urlInspectionResource;
+
+        $reflection = new ReflectionClass($console);
+        $property = $reflection->getProperty('searchConsoleService');
+        $property->setValue($console, $searchConsoleService);
+
+        $contextNormalizer = new UrlNormalizer(UrlNormalizationRules::forApiCalls());
+        $context = new InspectionContext(urlNormalizer: $contextNormalizer);
+        $result = $console->inspectUrl('https://example.com/', 'https://example.com/page#anchor?utm_source=test', null, $context);
+
+        expect($result)->toBeInstanceOf(UrlInspectionResult::class)
+            ->and($result->verdict)->toBe('PASS');
+    });
+
+    it('inspectBatchUrls uses context site url when context is provided', function (): void {
+        $console = createGoogleConsole();
+
+        $indexStatus = Mockery::mock(IndexStatusInspectionResult::class);
+        $indexStatus->shouldReceive('getVerdict')->andReturn('PASS');
+        $indexStatus->shouldReceive('getCoverageState')->andReturn('Submitted and indexed');
+        $indexStatus->shouldReceive('getRobotsTxtState')->andReturn('ALLOWED');
+        $indexStatus->shouldReceive('getIndexingState')->andReturn('INDEXING_ALLOWED');
+        $indexStatus->shouldReceive('getLastCrawlTime')->andReturn(null);
+        $indexStatus->shouldReceive('getPageFetchState')->andReturn('SUCCESSFUL');
+        $indexStatus->shouldReceive('getCrawledAs')->andReturn('MOBILE');
+        $indexStatus->shouldReceive('getGoogleCanonical')->andReturn('https://example.com/');
+        $indexStatus->shouldReceive('getUserCanonical')->andReturn('https://example.com/');
+
+        $mobileUsability = Mockery::mock(MobileUsabilityInspectionResult::class);
+        $mobileUsability->shouldReceive('getVerdict')->andReturn('PASS');
+        $mobileUsability->shouldReceive('getIssues')->andReturn([]);
+
+        $inspectionResult = Mockery::mock(GoogleUrlInspectionResult::class);
+        $inspectionResult->shouldReceive('getInspectionResultLink')->andReturn('');
+        $inspectionResult->shouldReceive('getIndexStatusResult')->andReturn($indexStatus);
+        $inspectionResult->shouldReceive('getMobileUsabilityResult')->andReturn($mobileUsability);
+
+        $inspectResponse = Mockery::mock(InspectUrlIndexResponse::class);
+        $inspectResponse->shouldReceive('getInspectionResult')->andReturn($inspectionResult);
+
+        $urlInspectionResource = Mockery::mock(SearchConsoleService\Resource\UrlInspectionIndex::class);
+        $urlInspectionResource->shouldReceive('inspect')
+            ->with(Mockery::on(static fn (InspectUrlIndexRequest $request): bool => $request->getSiteUrl() === 'sc-domain:example.com'))
+            ->andReturn($inspectResponse);
+
+        $searchConsoleService = Mockery::mock(SearchConsoleService::class);
+        $searchConsoleService->urlInspection_index = $urlInspectionResource;
+
+        $reflection = new ReflectionClass($console);
+        $property = $reflection->getProperty('searchConsoleService');
+        $property->setValue($console, $searchConsoleService);
+
+        $context = new InspectionContext(siteUrl: 'sc-domain:example.com');
+        $result = $console->inspectBatchUrls('https://example.com/', ['https://example.com/'], [], null, $context);
+
+        expect($result)->toBeInstanceOf(BatchUrlInspectionResult::class)
+            ->and($result->batchVerdict)->toBe(BatchVerdict::PASS)
+            ->and($result->perUrlResults)->toHaveCount(1);
+    });
+
     it('initializes webmasters service lazily', function (): void {
         $console = createGoogleConsole();
 
@@ -604,6 +744,36 @@ describe(GoogleConsole::class, function (): void {
             ->and($result->type)->toBe(IndexingNotificationType::URL_UPDATED)
             ->and($result->notifyTime)->not->toBeNull()
             ->and($result->notifyTime?->format('Y-m-d'))->toBe('2024-01-15');
+    });
+
+    it('requestIndexing normalizes url when url normalizer is configured', function (): void {
+        $responseBody = json_encode([
+            'urlNotificationMetadata' => [
+                'url' => 'https://example.com/page',
+                'latestUpdate' => ['notifyTime' => '2024-01-15T10:30:00Z'],
+            ],
+        ]);
+
+        $httpClient = Mockery::mock(HttpClient::class);
+        $httpClient->shouldReceive('send')
+            ->with(Mockery::on(static function (Request $request): bool {
+                $body = (string) $request->getBody();
+                $data = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
+
+                return ($data['url'] ?? '') === 'https://example.com/page';
+            }))
+            ->andReturn(new Response(200, [], $responseBody));
+
+        $client = Mockery::mock(Client::class);
+        $client->shouldReceive('authorize')->andReturn($httpClient);
+
+        $normalizer = new UrlNormalizer(UrlNormalizationRules::forApiCalls());
+        $console = new GoogleConsole($client, urlNormalizer: $normalizer);
+
+        $result = $console->requestIndexing('https://example.com/page#anchor?utm_source=test', IndexingNotificationType::URL_UPDATED);
+
+        expect($result)->toBeInstanceOf(IndexingResult::class)
+            ->and($result->url)->toBe('https://example.com/page');
     });
 
     it('requests indexing successfully without notify time', function (): void {

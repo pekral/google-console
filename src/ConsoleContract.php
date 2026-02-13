@@ -9,6 +9,7 @@ use Google\Client;
 use Pekral\GoogleConsole\DTO\BatchUrlInspectionResult;
 use Pekral\GoogleConsole\DTO\IndexingComparisonResult;
 use Pekral\GoogleConsole\DTO\IndexingResult;
+use Pekral\GoogleConsole\DTO\InspectionContext;
 use Pekral\GoogleConsole\DTO\Site;
 use Pekral\GoogleConsole\DTO\UrlInspectionResult;
 use Pekral\GoogleConsole\Enum\IndexingNotificationType;
@@ -59,9 +60,15 @@ interface ConsoleContract
      * @param string $siteUrl The site URL that owns the inspected page
      * @param string $inspectionUrl The full URL to inspect
      * @param \Pekral\GoogleConsole\Enum\OperatingMode|null $operatingMode strict (default) or best-effort
+     * @param \Pekral\GoogleConsole\DTO\InspectionContext|null $context optional request context (site, normalizer, mode)
      * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure
      */
-    public function inspectUrl(string $siteUrl, string $inspectionUrl, ?OperatingMode $operatingMode = null): UrlInspectionResult;
+    public function inspectUrl(
+        string $siteUrl,
+        string $inspectionUrl,
+        ?OperatingMode $operatingMode = null,
+        ?InspectionContext $context = null,
+    ): UrlInspectionResult;
 
     /**
      * Inspects multiple URLs and returns per-URL results plus aggregation.
@@ -71,6 +78,7 @@ interface ConsoleContract
      * @param array<int, string> $urls URLs to inspect
      * @param array<int, string> $criticalUrls Subset of URLs that must be INDEXED for batch to PASS
      * @param \Pekral\GoogleConsole\Enum\OperatingMode|null $operatingMode strict (default) or best-effort
+     * @param \Pekral\GoogleConsole\DTO\InspectionContext|null $context optional request context (site, normalizer, mode)
      * @throws \Pekral\GoogleConsole\Exception\BatchSizeLimitExceeded When batch size exceeds configured maximum
      * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure When a hard failure occurs
      */
@@ -79,6 +87,7 @@ interface ConsoleContract
         array $urls,
         array $criticalUrls = [],
         ?OperatingMode $operatingMode = null,
+        ?InspectionContext $context = null,
     ): BatchUrlInspectionResult;
 
     /**
