@@ -23,6 +23,7 @@ use Pekral\GoogleConsole\Config\GoogleConfig;
 use Pekral\GoogleConsole\DTO\BatchAggregation;
 use Pekral\GoogleConsole\DTO\BatchUrlInspectionResult;
 use Pekral\GoogleConsole\DTO\IndexingResult;
+use Pekral\GoogleConsole\DTO\IndexStatusCheckResult;
 use Pekral\GoogleConsole\DTO\InspectionContext;
 use Pekral\GoogleConsole\DTO\PerUrlInspectionResult;
 use Pekral\GoogleConsole\DTO\SearchAnalyticsRow;
@@ -32,6 +33,7 @@ use Pekral\GoogleConsole\Enum\BatchVerdict;
 use Pekral\GoogleConsole\Enum\FailureType;
 use Pekral\GoogleConsole\Enum\IndexingChangeType;
 use Pekral\GoogleConsole\Enum\IndexingCheckReasonCode;
+use Pekral\GoogleConsole\Enum\IndexingCheckSourceType;
 use Pekral\GoogleConsole\Enum\IndexingCheckStatus;
 use Pekral\GoogleConsole\Enum\IndexingNotificationType;
 use Pekral\GoogleConsole\Exception\BatchSizeLimitExceeded;
@@ -513,6 +515,129 @@ describe(GoogleConsole::class, function (): void {
 
         expect($result)->toBeInstanceOf(UrlInspectionResult::class)
             ->and($result->verdict)->toBe('PASS');
+    });
+
+    it('checkIndexStatus returns IndexStatusCheckResult with status and reason codes from inspectUrl', function (): void {
+        $console = createGoogleConsole();
+
+        $indexStatus = Mockery::mock(IndexStatusInspectionResult::class);
+        $indexStatus->shouldReceive('getVerdict')->andReturn('PASS');
+        $indexStatus->shouldReceive('getCoverageState')->andReturn('Submitted and indexed');
+        $indexStatus->shouldReceive('getRobotsTxtState')->andReturn('ALLOWED');
+        $indexStatus->shouldReceive('getIndexingState')->andReturn('INDEXING_ALLOWED');
+        $indexStatus->shouldReceive('getLastCrawlTime')->andReturn('2024-01-15T10:30:00Z');
+        $indexStatus->shouldReceive('getPageFetchState')->andReturn('SUCCESSFUL');
+        $indexStatus->shouldReceive('getCrawledAs')->andReturn('MOBILE');
+        $indexStatus->shouldReceive('getGoogleCanonical')->andReturn('https://example.com/page');
+        $indexStatus->shouldReceive('getUserCanonical')->andReturn('https://example.com/page');
+
+        $mobileUsability = Mockery::mock(MobileUsabilityInspectionResult::class);
+        $mobileUsability->shouldReceive('getVerdict')->andReturn('PASS');
+        $mobileUsability->shouldReceive('getIssues')->andReturn([]);
+
+        $inspectionResult = Mockery::mock(GoogleUrlInspectionResult::class);
+        $inspectionResult->shouldReceive('getInspectionResultLink')->andReturn('https://search.google.com/search-console/inspect');
+        $inspectionResult->shouldReceive('getIndexStatusResult')->andReturn($indexStatus);
+        $inspectionResult->shouldReceive('getMobileUsabilityResult')->andReturn($mobileUsability);
+
+        $inspectResponse = Mockery::mock(InspectUrlIndexResponse::class);
+        $inspectResponse->shouldReceive('getInspectionResult')->andReturn($inspectionResult);
+
+        $urlInspectionResource = Mockery::mock(SearchConsoleService\Resource\UrlInspectionIndex::class);
+        $urlInspectionResource->shouldReceive('inspect')->andReturn($inspectResponse);
+
+        $searchConsoleService = Mockery::mock(SearchConsoleService::class);
+        $searchConsoleService->urlInspection_index = $urlInspectionResource;
+
+        $reflection = new ReflectionClass($console);
+        $property = $reflection->getProperty('searchConsoleService');
+        $property->setValue($console, $searchConsoleService);
+
+        $result = $console->checkIndexStatus('https://example.com/', 'https://example.com/page');
+
+        expect($result)->toBeInstanceOf(IndexStatusCheckResult::class)
+            ->and($result->url)->toBe('https://example.com/page')
+            ->and($result->status)->toBe(IndexingCheckStatus::INDEXED)
+            ->and($result->reasonCodes)->not->toBeEmpty();
+    });
+
+    it('checkIndexStatus returns IndexStatusCheckResult when API returns no index status data', function (): void {
+        $console = createGoogleConsole();
+
+        $inspectionResult = Mockery::mock(GoogleUrlInspectionResult::class);
+        $inspectionResult->shouldReceive('getInspectionResultLink')->andReturn('');
+        $inspectionResult->shouldReceive('getIndexStatusResult')->andReturn(null);
+        $inspectionResult->shouldReceive('getMobileUsabilityResult')->andReturn(null);
+
+        $inspectResponse = Mockery::mock(InspectUrlIndexResponse::class);
+        $inspectResponse->shouldReceive('getInspectionResult')->andReturn($inspectionResult);
+
+        $urlInspectionResource = Mockery::mock(SearchConsoleService\Resource\UrlInspectionIndex::class);
+        $urlInspectionResource->shouldReceive('inspect')->andReturn($inspectResponse);
+
+        $searchConsoleService = Mockery::mock(SearchConsoleService::class);
+        $searchConsoleService->urlInspection_index = $urlInspectionResource;
+
+        $reflection = new ReflectionClass($console);
+        $property = $reflection->getProperty('searchConsoleService');
+        $property->setValue($console, $searchConsoleService);
+
+        $result = $console->checkIndexStatus('https://example.com/', 'https://example.com/page');
+
+        expect($result)->toBeInstanceOf(IndexStatusCheckResult::class)
+            ->and($result->url)->toBe('https://example.com/page')
+            ->and($result->status)->toBe(IndexingCheckStatus::UNKNOWN)
+            ->and($result->reasonCodes)->toContain(IndexingCheckReasonCode::INSUFFICIENT_DATA)
+            ->and($result->sourceType)->toBe(IndexingCheckSourceType::AUTHORITATIVE);
+    });
+
+    it('checkIndexStatus uses normalized url in result when normalizer is configured', function (): void {
+        $tempFile = createTestCredentialsFile();
+        $config = GoogleConfig::fromCredentialsPath($tempFile);
+        $client = new GoogleClientFactory()->create($config);
+        $normalizer = new UrlNormalizer(UrlNormalizationRules::forApiCalls());
+        $console = new GoogleConsole($client, urlNormalizer: $normalizer);
+        unlink($tempFile);
+
+        $indexStatus = Mockery::mock(IndexStatusInspectionResult::class);
+        $indexStatus->shouldReceive('getVerdict')->andReturn('PASS');
+        $indexStatus->shouldReceive('getCoverageState')->andReturn('Submitted and indexed');
+        $indexStatus->shouldReceive('getRobotsTxtState')->andReturn('ALLOWED');
+        $indexStatus->shouldReceive('getIndexingState')->andReturn('INDEXING_ALLOWED');
+        $indexStatus->shouldReceive('getLastCrawlTime')->andReturn(null);
+        $indexStatus->shouldReceive('getPageFetchState')->andReturn('SUCCESSFUL');
+        $indexStatus->shouldReceive('getCrawledAs')->andReturn('MOBILE');
+        $indexStatus->shouldReceive('getGoogleCanonical')->andReturn('https://example.com/page');
+        $indexStatus->shouldReceive('getUserCanonical')->andReturn('https://example.com/page');
+
+        $mobileUsability = Mockery::mock(MobileUsabilityInspectionResult::class);
+        $mobileUsability->shouldReceive('getVerdict')->andReturn('PASS');
+        $mobileUsability->shouldReceive('getIssues')->andReturn([]);
+
+        $inspectionResult = Mockery::mock(GoogleUrlInspectionResult::class);
+        $inspectionResult->shouldReceive('getInspectionResultLink')->andReturn('');
+        $inspectionResult->shouldReceive('getIndexStatusResult')->andReturn($indexStatus);
+        $inspectionResult->shouldReceive('getMobileUsabilityResult')->andReturn($mobileUsability);
+
+        $inspectResponse = Mockery::mock(InspectUrlIndexResponse::class);
+        $inspectResponse->shouldReceive('getInspectionResult')->andReturn($inspectionResult);
+
+        $urlInspectionResource = Mockery::mock(SearchConsoleService\Resource\UrlInspectionIndex::class);
+        $urlInspectionResource->shouldReceive('inspect')
+            ->with(Mockery::on(static fn (InspectUrlIndexRequest $request): bool => $request->getInspectionUrl() === 'https://example.com/page'))
+            ->andReturn($inspectResponse);
+
+        $searchConsoleService = Mockery::mock(SearchConsoleService::class);
+        $searchConsoleService->urlInspection_index = $urlInspectionResource;
+
+        $reflection = new ReflectionClass($console);
+        $property = $reflection->getProperty('searchConsoleService');
+        $property->setValue($console, $searchConsoleService);
+
+        $result = $console->checkIndexStatus('https://example.com/', 'https://example.com/page#section?utm_source=google&gclid=abc');
+
+        expect($result)->toBeInstanceOf(IndexStatusCheckResult::class)
+            ->and($result->url)->toBe('https://example.com/page');
     });
 
     it('inspectBatchUrls uses context site url when context is provided', function (): void {

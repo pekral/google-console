@@ -25,14 +25,18 @@ use Pekral\GoogleConsole\DataBuilder\RequestDataBuilder;
 use Pekral\GoogleConsole\DataBuilder\SiteDataBuilder;
 use Pekral\GoogleConsole\DataBuilder\UrlInspectionDataBuilder;
 use Pekral\GoogleConsole\DTO\BatchUrlInspectionResult;
+use Pekral\GoogleConsole\DTO\IndexingCheckResult;
 use Pekral\GoogleConsole\DTO\IndexingComparisonResult;
 use Pekral\GoogleConsole\DTO\IndexingResult;
+use Pekral\GoogleConsole\DTO\IndexStatusCheckResult;
 use Pekral\GoogleConsole\DTO\InspectionContext;
 use Pekral\GoogleConsole\DTO\PerUrlInspectionResult;
 use Pekral\GoogleConsole\DTO\SearchAnalyticsRow;
 use Pekral\GoogleConsole\DTO\Site;
 use Pekral\GoogleConsole\DTO\UrlInspectionResult;
 use Pekral\GoogleConsole\Enum\BatchVerdict;
+use Pekral\GoogleConsole\Enum\IndexingCheckConfidence;
+use Pekral\GoogleConsole\Enum\IndexingCheckSourceType;
 use Pekral\GoogleConsole\Enum\IndexingCheckStatus;
 use Pekral\GoogleConsole\Enum\IndexingNotificationType;
 use Pekral\GoogleConsole\Enum\OperatingMode;
@@ -190,6 +194,37 @@ final class GoogleConsole implements ConsoleContract
                 $e,
             );
         }
+    }
+
+    /**
+     * Checks index status of a URL and returns a business DTO (status, reason_codes, confidence, etc.).
+     * For full inspection data (mobile usability, canonicals, coverage state) use inspectUrl() instead.
+     *
+     * @param string $siteUrl The site URL that owns the inspected page
+     * @param string $url The full URL to check
+     * @param \Pekral\GoogleConsole\Enum\OperatingMode|null $operatingMode strict (default) or best-effort
+     * @param \Pekral\GoogleConsole\DTO\InspectionContext|null $context optional request context (site, normalizer, mode)
+     * @return \Pekral\GoogleConsole\DTO\IndexStatusCheckResult Business result with status and reason_codes
+     * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure When the inspection request fails
+     */
+    public function checkIndexStatus(
+        string $siteUrl,
+        string $url,
+        ?OperatingMode $operatingMode = null,
+        ?InspectionContext $context = null,
+    ): IndexStatusCheckResult {
+        $normalizedUrl = $this->normalizeUrlWith($url, $context);
+        $fullResult = $this->inspectUrl($siteUrl, $normalizedUrl, $operatingMode, $context);
+
+        $check = $fullResult->indexingCheckResult ?? new IndexingCheckResult(
+            primaryStatus: IndexingCheckStatus::fromUrlInspectionResult($fullResult),
+            confidence: IndexingCheckConfidence::LOW,
+            reasonCodes: [],
+            checkedAt: $fullResult->lastCrawlTime ?? new DateTimeImmutable(),
+            sourceType: IndexingCheckSourceType::HEURISTIC,
+        );
+
+        return IndexStatusCheckResult::fromIndexingCheckResult($normalizedUrl, $check);
     }
 
     /**
