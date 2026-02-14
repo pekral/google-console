@@ -20,18 +20,23 @@ final readonly class BatchConfig
      */
     private Closure $sleepFunction;
 
+    private Backoff $backoff;
+
     /**
      * @param \Closure(int): void|null $sleepFunction Custom sleep function (useful for testing)
+     * @param \Pekral\GoogleConsole\Config\Backoff|null $backoff Custom backoff (default: exponential with jitter from cooldownSeconds)
      */
     public function __construct(
         public int $maxBatchSize = self::DEFAULT_MAX_BATCH_SIZE,
         public int $cooldownSeconds = self::DEFAULT_COOLDOWN_SECONDS,
         public int $maxRetries = self::DEFAULT_MAX_RETRIES,
         ?Closure $sleepFunction = null,
+        ?Backoff $backoff = null,
     ) {
         $this->sleepFunction = $sleepFunction ?? static function (int $seconds): void {
             sleep($seconds);
         };
+        $this->backoff = $backoff ?? new Backoff(baseSeconds: $cooldownSeconds, useJitter: true, sleepFunction: $this->sleepFunction);
     }
 
     public static function default(): self
@@ -39,9 +44,14 @@ final readonly class BatchConfig
         return new self();
     }
 
-    public function applyCooldown(): void
+    /**
+     * Applies backoff before the next retry (exponential with jitter).
+     *
+     * @param int $attempt 1-based attempt number (1 = first retry after first failure)
+     */
+    public function applyCooldown(int $attempt = 1): void
     {
-        ($this->sleepFunction)($this->cooldownSeconds);
+        $this->backoff->sleepBeforeRetry($attempt);
     }
 
 }

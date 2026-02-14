@@ -18,6 +18,7 @@ use Google\Service\Webmasters\WmxSite;
 use GuzzleHttp\Client as HttpClient;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
+use Pekral\GoogleConsole\Config\Backoff;
 use Pekral\GoogleConsole\Config\BatchConfig;
 use Pekral\GoogleConsole\Config\GoogleConfig;
 use Pekral\GoogleConsole\DTO\BatchAggregation;
@@ -1382,13 +1383,15 @@ describe(GoogleConsole::class, function (): void {
             }
 
         };
+        $sleepFn = static function (int $seconds) use ($tracker): void {
+            $tracker->record($seconds);
+        };
         $batchConfig = new BatchConfig(
             maxBatchSize: 10,
             cooldownSeconds: 3,
             maxRetries: 2,
-            sleepFunction: static function (int $seconds) use ($tracker): void {
-                $tracker->record($seconds);
-            },
+            sleepFunction: $sleepFn,
+            backoff: new Backoff(baseSeconds: 3, useJitter: false, sleepFunction: $sleepFn),
         );
         $console = createGoogleConsole($batchConfig);
 
@@ -1408,7 +1411,7 @@ describe(GoogleConsole::class, function (): void {
             ['https://example.com/cooldown'],
         );
 
-        expect($tracker->getCalls())->toBe([3, 3])
+        expect($tracker->getCalls())->toBe([3, 6])
             ->and($result->perUrlResults['https://example.com/cooldown']->isSoftFailure())->toBeTrue();
     });
 
