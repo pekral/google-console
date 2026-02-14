@@ -264,6 +264,8 @@ echo 'Type: ' . $result->type->value . PHP_EOL;
 echo 'Notify time: ' . ($result->notifyTime?->format('c') ?? 'N/A') . PHP_EOL;
 ```
 
+**Index management workflow:** The [Indexing API quickstart](https://developers.google.com/search/apis/indexing-api/v3/quickstart) recommends using a **sitemap** for full website coverage and reserving the Indexing API for specific short-lived page types (e.g. job postings, livestreams). For pages that do not qualify for the Indexing API, submitting or updating your sitemap in Search Console is the standard way to notify Google about new or changed URLs.
+
 ### URL normalization (optional)
 
 To normalize URLs before API calls (remove fragment, strip `utm_*`/`gclid`, optional trailing slash rules), pass an `UrlNormalizer` when creating the console:
