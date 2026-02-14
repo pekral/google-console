@@ -18,17 +18,12 @@ declare(strict_types = 1);
 
 require __DIR__ . '/bootstrap.php';
 
-use Pekral\GoogleConsole\Config\GoogleConfig;
 use Pekral\GoogleConsole\Exception\QuotaExceededException;
-use Pekral\GoogleConsole\Factory\GoogleClientFactory;
-use Pekral\GoogleConsole\GoogleConsole;
+use Pekral\GoogleConsole\Factory\GoogleConsoleFactory;
 use Pekral\GoogleConsole\RateLimit\RateLimiter;
 
-$config = GoogleConfig::fromCredentialsPath($credentials);
-$client = new GoogleClientFactory()->create($config);
-
 $rateLimiter = new RateLimiter();
-$console = new GoogleConsole($client, rateLimiter: $rateLimiter);
+$console = GoogleConsoleFactory::fromCredentialsPath($credentials, rateLimiter: $rateLimiter);
 
 echo "Rate limiter enabled (QPD/QPM per API family)\n";
 echo str_repeat('─', 60) . "\n\n";

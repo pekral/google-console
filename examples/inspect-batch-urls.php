@@ -23,9 +23,7 @@ declare(strict_types = 1);
 
 require __DIR__ . '/bootstrap.php';
 
-use Pekral\GoogleConsole\Config\GoogleConfig;
-use Pekral\GoogleConsole\Factory\GoogleClientFactory;
-use Pekral\GoogleConsole\GoogleConsole;
+use Pekral\GoogleConsole\Factory\GoogleConsoleFactory;
 
 $siteUrl = 'sc-domain:pekral.cz';
 $urls = [
@@ -51,9 +49,7 @@ foreach ($argv as $i => $arg) {
     }
 }
 
-$config = GoogleConfig::fromCredentialsPath($credentials);
-$client = new GoogleClientFactory()->create($config);
-$console = new GoogleConsole($client);
+$console = GoogleConsoleFactory::fromCredentialsPath($credentials);
 
 $result = $console->inspectBatchUrls($siteUrl, $urls, $criticalUrls);
 

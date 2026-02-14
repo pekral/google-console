@@ -20,6 +20,7 @@ use Google\Service\Webmasters\WmxSite;
 use GuzzleHttp\Psr7\Request;
 use Pekral\GoogleConsole\Config\BatchConfig;
 use Pekral\GoogleConsole\Config\GoogleConfig;
+use Pekral\GoogleConsole\Config\OAuth2Config;
 use Pekral\GoogleConsole\DataBuilder\BatchAggregationBuilder;
 use Pekral\GoogleConsole\DataBuilder\RequestDataBuilder;
 use Pekral\GoogleConsole\DataBuilder\SiteDataBuilder;
@@ -88,6 +89,23 @@ final class GoogleConsole implements ConsoleContract
         $config = GoogleConfig::fromCredentialsPath($path);
 
         return new self(new GoogleClientFactory()->create($config));
+    }
+
+    /**
+     * Creates a GoogleConsole instance from OAuth2 credentials file and a refresh token.
+     *
+     * @param string $path Path to OAuth2 client credentials JSON (e.g. client_secret_*.json)
+     * @param string $refreshToken Refresh token from the authorization code flow
+     * @param bool $fetchAccessToken When true (default), fetches access token immediately; set false only for testing without network
+     * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure When credentials file is not found or invalid
+     */
+    // phpcs:ignore Generic.NamingConventions.CamelCapsFunctionName.ScopeNotCamelCaps -- OAuth2 is standard term
+    public static function fromOAuth2RefreshToken(string $path, string $refreshToken, bool $fetchAccessToken = true): self
+    {
+        $config = OAuth2Config::fromCredentialsPath($path, $refreshToken);
+        $client = new GoogleClientFactory()->createFromOAuth2($config, $fetchAccessToken);
+
+        return new self($client);
     }
 
     public function getClient(): Client

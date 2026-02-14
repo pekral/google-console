@@ -31,17 +31,13 @@ declare(strict_types = 1);
 
 require __DIR__ . '/bootstrap.php';
 
-use Pekral\GoogleConsole\Config\GoogleConfig;
 use Pekral\GoogleConsole\Enum\IndexingCheckReasonCode;
-use Pekral\GoogleConsole\Factory\GoogleClientFactory;
-use Pekral\GoogleConsole\GoogleConsole;
+use Pekral\GoogleConsole\Factory\GoogleConsoleFactory;
 use Pekral\GoogleConsole\UrlNormalizer\UrlNormalizationRules;
 use Pekral\GoogleConsole\UrlNormalizer\UrlNormalizer;
 
-$config = GoogleConfig::fromCredentialsPath($credentials);
-$client = new GoogleClientFactory()->create($config);
 $normalizer = new UrlNormalizer(UrlNormalizationRules::forApiCalls());
-$console = new GoogleConsole($client, urlNormalizer: $normalizer);
+$console = GoogleConsoleFactory::fromCredentialsPath($credentials, urlNormalizer: $normalizer);
 
 $result = $console->inspectUrl('sc-domain:pekral.cz', 'https://pekral.cz/');
 

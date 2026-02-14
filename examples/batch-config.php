@@ -19,10 +19,8 @@ declare(strict_types = 1);
 require __DIR__ . '/bootstrap.php';
 
 use Pekral\GoogleConsole\Config\BatchConfig;
-use Pekral\GoogleConsole\Config\GoogleConfig;
 use Pekral\GoogleConsole\Exception\BatchSizeLimitExceeded;
-use Pekral\GoogleConsole\Factory\GoogleClientFactory;
-use Pekral\GoogleConsole\GoogleConsole;
+use Pekral\GoogleConsole\Factory\GoogleConsoleFactory;
 
 $siteUrl = 'sc-domain:pekral.cz';
 $urls = [
@@ -30,12 +28,8 @@ $urls = [
     'https://pekral.cz/blog',
 ];
 
-$config = GoogleConfig::fromCredentialsPath($credentials);
-$client = new GoogleClientFactory()->create($config);
-
 $batchConfig = new BatchConfig(maxBatchSize: 50, cooldownSeconds: 5, maxRetries: 2);
-
-$console = new GoogleConsole($client, batchConfig: $batchConfig);
+$console = GoogleConsoleFactory::fromCredentialsPath($credentials, batchConfig: $batchConfig);
 
 echo "Batch configuration\n";
 echo str_repeat('─', 60) . "\n";

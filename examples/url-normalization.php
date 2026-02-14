@@ -19,9 +19,7 @@ declare(strict_types = 1);
 
 require __DIR__ . '/../vendor/autoload.php';
 
-use Pekral\GoogleConsole\Config\GoogleConfig;
-use Pekral\GoogleConsole\Factory\GoogleClientFactory;
-use Pekral\GoogleConsole\GoogleConsole;
+use Pekral\GoogleConsole\Factory\GoogleConsoleFactory;
 use Pekral\GoogleConsole\UrlNormalizer\TrailingSlashMode;
 use Pekral\GoogleConsole\UrlNormalizer\UrlNormalizationRules;
 use Pekral\GoogleConsole\UrlNormalizer\UrlNormalizer;
@@ -56,10 +54,8 @@ function runStandaloneDemo(): void
 
 function runApiExample(string $credentialsPath): void
 {
-    $config = GoogleConfig::fromCredentialsPath($credentialsPath);
-    $client = new GoogleClientFactory()->create($config);
     $normalizer = new UrlNormalizer(UrlNormalizationRules::forApiCalls());
-    $console = new GoogleConsole($client, urlNormalizer: $normalizer);
+    $console = GoogleConsoleFactory::fromCredentialsPath($credentialsPath, urlNormalizer: $normalizer);
 
     $siteUrl = 'sc-domain:pekral.cz';
     $inspectionUrl = 'https://pekral.cz/?utm_source=test#anchor';

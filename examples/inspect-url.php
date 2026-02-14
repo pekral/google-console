@@ -5,63 +5,70 @@ declare(strict_types = 1);
 /**
  * Example: inspect a URL for indexing status and mobile usability.
  *
- * Runs the pekral:google-url-inspect command, which outputs:
- * - Indexing status (verdict, coverage state, indexing state, robots.txt, page fetch, last crawl)
- * - Business output model (when available): primary status (INDEXED | NOT_INDEXED | UNKNOWN),
- *   confidence (high | medium | low), reason_codes, checked_at, source_type
- * - Canonical URLs (Google, user)
- * - Mobile usability (mobile-friendly verdict and issues)
+ * Outputs: indexing status, business output (primary status, confidence, reason codes),
+ * canonical URLs, mobile usability.
  *
- * Optional: --mode=strict (default) or --mode=best-effort (allows heuristic INDEXED when data is inconclusive).
+ * Optional: --mode=strict (default) or --mode=best-effort.
+ * Optional: --json for JSON output.
  *
- * Test domain: pekral.cz
- *
- * Run:
- *   GOOGLE_CREDENTIALS_PATH=/path/to/credentials.json php examples/inspect-url.php
- *
- * With best-effort mode:
- *   GOOGLE_CREDENTIALS_PATH=/path/to/credentials.json php examples/inspect-url.php --mode=best-effort
- *
- * JSON output (includes indexingCheckResult when present):
- *   GOOGLE_CREDENTIALS_PATH=/path/to/credentials.json php examples/inspect-url.php --json
+ * Run: GOOGLE_CREDENTIALS_PATH=/path/to/credentials.json php examples/inspect-url.php
  */
 
 require __DIR__ . '/bootstrap.php';
 
-use Symfony\Component\Console\Input\ArrayInput;
-use Symfony\Component\Console\Output\ConsoleOutput;
+use Pekral\GoogleConsole\Enum\IndexingCheckReasonCode;
+use Pekral\GoogleConsole\Enum\OperatingMode;
+use Pekral\GoogleConsole\Factory\GoogleConsoleFactory;
 
-$options = [
-    '--credentials' => $credentials,
-    'command' => 'pekral:google-url-inspect',
-    'inspection-url' => 'https://pekral.cz/',
-    'site-url' => 'sc-domain:pekral.cz',
-];
+$mode = OperatingMode::STRICT;
+$json = false;
 
 $argv ??= [];
 
-for ($i = 1; $i < count($argv); $i++) {
-    $arg = $argv[$i];
-
+foreach ($argv as $i => $arg) {
     if ($arg === '--json' || $arg === '-j') {
-        $options['--json'] = true;
-
-        continue;
+        $json = true;
     }
 
     if (str_starts_with($arg, '--mode=')) {
-        $options['--mode'] = substr($arg, 7);
-
-        continue;
+        $mode = OperatingMode::from(substr($arg, 7));
     }
 
-    if ($arg !== '--mode' || !isset($argv[$i + 1])) {
-        continue;
+    if ($arg === '--mode' && isset($argv[$i + 1])) {
+        $mode = OperatingMode::from($argv[$i + 1]);
     }
-
-    $options['--mode'] = $argv[$i + 1];
-    $i++;
 }
 
-$input = new ArrayInput($options);
-$application->run($input, new ConsoleOutput());
+$console = GoogleConsoleFactory::fromCredentialsPath($credentials);
+$result = $console->inspectUrl('sc-domain:pekral.cz', 'https://pekral.cz/', $mode);
+
+if ($json) {
+    echo json_encode($result->toArray(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n";
+    exit(0);
+}
+
+echo "Google Search Console - URL Inspection\n";
+echo str_repeat('─', 60) . "\n\n";
+echo "Indexing Status\n";
+echo '  Verdict         ' . $result->verdict . "\n";
+echo '  Is Indexed      ' . ($result->isIndexed() ? 'Yes' : 'No') . "\n";
+echo '  Coverage State  ' . $result->coverageState . "\n";
+echo '  Last Crawl     ' . ($result->lastCrawlTime?->format('Y-m-d H:i:s') ?? 'N/A') . "\n";
+
+if ($result->indexingCheckResult !== null) {
+    $check = $result->indexingCheckResult;
+    echo "\nBusiness output (indexing check)\n";
+    echo '  Primary status  ' . $check->primaryStatus->value . "\n";
+    echo '  Confidence      ' . $check->confidence->value . "\n";
+    echo '  Reason codes    ' . implode(', ', array_map(static fn (IndexingCheckReasonCode $c) => $c->value, $check->reasonCodes)) . "\n";
+}
+
+echo "\nCanonical URLs\n";
+echo '  Google  ' . ($result->googleCanonical ?? 'N/A') . "\n";
+echo '  User    ' . ($result->userCanonical ?? 'N/A') . "\n";
+echo "\nMobile Usability\n";
+echo '  Mobile Friendly  ' . ($result->isMobileFriendly ? 'Yes' : 'No') . "\n";
+
+if ($result->mobileUsabilityIssue !== null) {
+    echo '  Issues           ' . $result->mobileUsabilityIssue . "\n";
+}

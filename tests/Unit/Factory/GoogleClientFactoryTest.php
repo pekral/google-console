@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 use Google\Client;
 use Pekral\GoogleConsole\Config\GoogleConfig;
+use Pekral\GoogleConsole\Config\OAuth2Config;
 use Pekral\GoogleConsole\Factory\GoogleClientFactory;
 
 describe(GoogleClientFactory::class, function (): void {
@@ -87,5 +88,53 @@ describe(GoogleClientFactory::class, function (): void {
         expect($scopes)->toContain(GoogleClientFactory::INDEXING_SCOPE);
 
         unlink($tempFile);
+    });
+
+    it('creates client from OAuth2 config without fetching token', function (): void {
+        $config = new OAuth2Config(
+            clientId: 'cid.apps.googleusercontent.com',
+            clientSecret: 'secret',
+            refreshToken: 'refresh-token-123',
+            redirectUri: 'https://example.com/callback',
+        );
+
+        $factory = new GoogleClientFactory();
+        $client = $factory->createFromOAuth2($config, false);
+
+        expect($client)->toBeInstanceOf(Client::class);
+
+        $token = $client->getAccessToken();
+        expect($token)->toBeArray()
+            ->and($token['refresh_token'])->toBe('refresh-token-123');
+
+        $scopes = $client->getScopes();
+        expect($scopes)->toContain(GoogleClientFactory::INDEXING_SCOPE);
+    });
+
+    it('sets application name when creating from OAuth2 config', function (): void {
+        $config = new OAuth2Config(
+            clientId: 'cid',
+            clientSecret: 'sec',
+            refreshToken: 'rt',
+            applicationName: 'My OAuth2 App',
+        );
+
+        $factory = new GoogleClientFactory();
+        $client = $factory->createFromOAuth2($config, false);
+
+        expect($client->getConfig('application_name'))->toBe('My OAuth2 App');
+    });
+
+    it('calls fetchAccessTokenWithRefreshToken when fetchAccessToken is true', function (): void {
+        $config = new OAuth2Config(
+            clientId: 'invalid-client-id.apps.googleusercontent.com',
+            clientSecret: 'invalid-secret',
+            refreshToken: 'invalid-refresh-token',
+        );
+
+        $factory = new GoogleClientFactory();
+        $client = $factory->createFromOAuth2($config, true);
+
+        expect($client)->toBeInstanceOf(Client::class);
     });
 });

@@ -11,13 +11,23 @@ declare(strict_types = 1);
 
 require __DIR__ . '/bootstrap.php';
 
-use Symfony\Component\Console\Input\ArrayInput;
-use Symfony\Component\Console\Output\ConsoleOutput;
+use Pekral\GoogleConsole\Enum\IndexingNotificationType;
+use Pekral\GoogleConsole\Factory\GoogleConsoleFactory;
 
-$input = new ArrayInput([
-    '--credentials' => $credentials,
-    'command' => 'pekral:google-request-indexing',
-    'url' => 'https://pekral.cz/novy-clanek',
-]);
+$url = 'https://pekral.cz/novy-clanek';
+$type = IndexingNotificationType::URL_UPDATED;
 
-$application->run($input, new ConsoleOutput());
+if (in_array('--delete', $argv ?? [], true)) {
+    $type = IndexingNotificationType::URL_DELETED;
+}
+
+$console = GoogleConsoleFactory::fromCredentialsPath($credentials);
+$result = $console->requestIndexing($url, $type);
+
+echo "Google Indexing API - Request Indexing\n";
+echo str_repeat('─', 60) . "\n\n";
+echo "Request Details\n";
+echo '  URL         ' . $result->url . "\n";
+echo '  Type        ' . $result->type->value . "\n";
+echo '  Notify Time ' . ($result->notifyTime?->format('Y-m-d H:i:s') ?? 'N/A') . "\n\n";
+echo "Indexing request submitted successfully.\n";

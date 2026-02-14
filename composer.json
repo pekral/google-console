@@ -1,6 +1,6 @@
 {
     "name": "pekral/google-console",
-    "description": "PHP wrapper for Google Search Console API with typed DTOs and CLI commands",
+    "description": "PHP wrapper for Google Search Console API with typed DTOs",
     "license": "MIT",
     "type": "library",
     "keywords": [
@@ -33,7 +33,6 @@
         "ergebnis/composer-normalize": "^2.50.0",
         "laravel/pint": "^1.27.1",
         "mockery/mockery": "^1.6.12",
-        "nunomaduro/termwind": "^2.3.3",
         "pekral/cursor-rules": "dev-master",
         "pekral/phpcs-rules": "^0.4.6",
         "pekral/rector-rules": "^0.4.7",
@@ -43,10 +42,9 @@
         "phpstan/phpstan": "^2.1.39",
         "phpstan/phpstan-deprecation-rules": "^2.0.4",
         "phpstan/phpstan-mockery": "^2.0",
-        "phpstan/phpstan-phpunit": "^2.0.15",
+        "phpstan/phpstan-phpunit": "^2.0.16",
         "roave/security-advisories": "dev-latest",
-        "squizlabs/php_codesniffer": ">=4.0.1",
-        "symfony/console": "^7.4.4"
+        "squizlabs/php_codesniffer": ">=4.0.1"
     },
     "minimum-stability": "dev",
     "prefer-stable": true,

@@ -1,10 +1,10 @@
 # Changelog
 
-All notable changes to `arch-app-services` will be documented in this file.
+All notable changes to `pekral/google-console` will be documented in this file.
 
 ## [Unreleased] - 2026-01-24
 
-
+- 🗑 **Removed**: CLI commands (Symfony Console) and Command folder; examples are programmatic only
 - 🐛 **Fixed**: composer scripts fix
 - 🔧 **Changed**: composer update dependencies
 - ✨ **Added**: load Google data

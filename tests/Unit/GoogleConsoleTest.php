@@ -113,6 +113,24 @@ describe(GoogleConsole::class, function (): void {
                 GoogleConsole::fromCredentialsPath('/non/existent/path.json');
             })->throws(GoogleConsoleFailure::class, 'Credentials file not found');
 
+            it('creates instance from OAuth2 refresh token', function (): void {
+                $tempFile = sys_get_temp_dir() . '/test-oauth2-' . uniqid() . '.json';
+                file_put_contents($tempFile, json_encode([
+                    'web' => [
+                        'client_id' => 'cid',
+                        'client_secret' => 'sec',
+                        'redirect_uris' => ['https://example.com/cb'],
+                    ],
+                ]));
+
+                $console = GoogleConsole::fromOAuth2RefreshToken($tempFile, 'refresh-token', false);
+
+                expect($console)->toBeInstanceOf(GoogleConsole::class)
+                    ->and($console->getClient())->toBeInstanceOf(Client::class);
+
+                unlink($tempFile);
+            });
+
             it('returns client instance', function (): void {
                 $console = createGoogleConsole();
 
@@ -830,7 +848,7 @@ describe(GoogleConsole::class, function (): void {
                 expect($serviceAgain)->toBe($service);
             });
 
-            it('initializes search pekral-google service lazily', function (): void {
+            it('initializes search console service lazily', function (): void {
                 $console = createGoogleConsole();
 
                 $reflection = new ReflectionClass($console);

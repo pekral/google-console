@@ -11,17 +11,29 @@ declare(strict_types = 1);
 
 require __DIR__ . '/bootstrap.php';
 
-use Symfony\Component\Console\Input\ArrayInput;
-use Symfony\Component\Console\Output\ConsoleOutput;
+use Pekral\GoogleConsole\Factory\GoogleConsoleFactory;
 
-$input = new ArrayInput([
-    '--credentials' => $credentials,
-    '--dimensions' => 'query',
-    '--end-date' => new DateTimeImmutable()->format('Y-m-d'),
-    '--row-limit' => '100',
-    '--start-date' => new DateTimeImmutable('-30 days')->format('Y-m-d'),
-    'command' => 'pekral:google-analytics-search',
-    'site-url' => 'sc-domain:pekral.cz',
-]);
+$console = GoogleConsoleFactory::fromCredentialsPath($credentials);
 
-$application->run($input, new ConsoleOutput());
+$startDate = new DateTimeImmutable('-30 days');
+$endDate = new DateTimeImmutable();
+
+$rows = $console->getSearchAnalytics(
+    siteUrl: 'sc-domain:pekral.cz',
+    startDate: $startDate,
+    endDate: $endDate,
+    dimensions: ['query'],
+    rowLimit: 100,
+);
+
+echo "Google Search Console - Analytics\n";
+echo str_repeat('─', 60) . "\n\n";
+echo sprintf("Search Performance (%s - %s)\n\n", $startDate->format('Y-m-d'), $endDate->format('Y-m-d'));
+printf("%-15s %10s %15s %10s %12s\n", 'query', 'Clicks', 'Impressions', 'CTR', 'Position');
+echo str_repeat('-', 65) . "\n";
+
+foreach ($rows as $row) {
+    printf("%-15s %10d %15d %9.2f%% %12.1f\n", $row->query ?? '', $row->clicks, $row->impressions, $row->ctr * 100, $row->position);
+}
+
+echo "\nFound " . count($rows) . " row(s).\n";

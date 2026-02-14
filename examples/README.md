@@ -1,11 +1,17 @@
-# CLI usage examples
+# Usage examples
 
 Test domain used in examples: **pekral.cz**.
 
-Before running, set the environment variable with the path to your credentials (Google Service Account JSON):
+Before running:
+
+- **Service account examples:** set `GOOGLE_CREDENTIALS_PATH` to your service account JSON path.
+- **OAuth2 example** ([list-sites-oauth2.php](list-sites-oauth2.php)): set `GOOGLE_OAUTH2_CREDENTIALS_PATH` (path to `client_secret_*.json`) and `GOOGLE_REFRESH_TOKEN`.
 
 ```bash
 export GOOGLE_CREDENTIALS_PATH=/path/to/credentials.json
+# For OAuth2:
+# export GOOGLE_OAUTH2_CREDENTIALS_PATH=/path/to/client_secret_xxx.json
+# export GOOGLE_REFRESH_TOKEN=your_refresh_token
 ```
 
 Run from the project root:
@@ -14,26 +20,29 @@ Run from the project root:
 php examples/<name>.php
 ```
 
-## Example overview (one file = one command)
+## Example overview
 
-| File | Command | Description |
-|------|---------|-------------|
-| [list-sites.php](list-sites.php) | `pekral:google-sites-list` | List all sites from Search Console |
-| [get-site.php](get-site.php) | `pekral:google-site-get` | Get site details for https://pekral.cz/ |
-| [search-analytics.php](search-analytics.php) | `pekral:google-analytics-search` | Search analytics (30 days, query dimension) |
-| [inspect-url.php](inspect-url.php) | `pekral:google-url-inspect` | Inspect URL: indexing status, **business output** (primary status, confidence, reason codes), mobile usability. Option: `--mode=strict` \| `--mode=best-effort` |
-| [check-index-status.php](check-index-status.php) | — | Programmatic: call `checkIndexStatus()` (Index Status Checker) and print **IndexStatusCheckResult** (url, status, reason_codes, confidence, checked_at, source_type). Use for status-only checks. |
-| [inspect-url-business-model.php](inspect-url-business-model.php) | — | Programmatic: call `inspectUrl()` with **URL normalizer** and print the **indexing check result** (primary status, confidence, reason_codes, checked_at, source_type). Uses `UrlNormalizationRules::forApiCalls()`. |
-| [inspect-batch-urls.php](inspect-batch-urls.php) | — | Programmatic: call `inspectBatchUrls()` with a list of URLs and optional **critical URLs**. Prints per-URL results, aggregation (indexed/not indexed/unknown counts, reason code overview), critical URL statuses, and batch verdict (PASS/FAIL). Option: `--critical=url1,url2` |
-| [compare-indexing-runs.php](compare-indexing-runs.php) | — | Programmatic: run `inspectBatchUrls()` twice and call `compareIndexingRuns()`. Prints changes (NEWLY_INDEXED, DROPPED_FROM_INDEX, BECAME_UNKNOWN, RECOVERED_FROM_UNKNOWN), deltas by status, and dominant reason codes. For monitoring: store first run and compare with a later run. |
-| [request-indexing.php](request-indexing.php) | `pekral:google-request-indexing` | Request indexing for a chosen URL |
-| [url-normalization.php](url-normalization.php) | — | **URL normalization**: standalone demo of `UrlNormalizer` (defaults, forApiCalls, custom trailing slash). Optional `--api` to call `inspectUrl()` with normalizer (requires credentials). |
+| File | Description |
+|------|-------------|
+| [list-sites.php](list-sites.php) | List all sites from Search Console (service account) |
+| [list-sites-oauth2.php](list-sites-oauth2.php) | List all sites using OAuth2 (refresh token). Env: `GOOGLE_OAUTH2_CREDENTIALS_PATH`, `GOOGLE_REFRESH_TOKEN`. |
+| [get-site.php](get-site.php) | Get site details for sc-domain:pekral.cz |
+| [search-analytics.php](search-analytics.php) | Search analytics (30 days, query dimension) |
+| [inspect-url.php](inspect-url.php) | Inspect URL: indexing status, business output (primary status, confidence, reason codes), mobile usability. Options: `--mode=strict` \| `--mode=best-effort`, `--json` |
+| [check-index-status.php](check-index-status.php) | Call `checkIndexStatus()` and print IndexStatusCheckResult (url, status, reason_codes, confidence, checked_at, source_type). Use for status-only checks. |
+| [inspect-url-business-model.php](inspect-url-business-model.php) | Call `inspectUrl()` with URL normalizer and print the indexing check result. Uses `UrlNormalizationRules::forApiCalls()`. |
+| [inspect-batch-urls.php](inspect-batch-urls.php) | Call `inspectBatchUrls()` with a list of URLs and optional critical URLs. Option: `--critical=url1,url2` |
+| [compare-indexing-runs.php](compare-indexing-runs.php) | Run `inspectBatchUrls()` twice and call `compareIndexingRuns()`. Prints changes, deltas, and dominant reason codes. |
+| [request-indexing.php](request-indexing.php) | Request indexing for a URL. Option: `--delete` for URL removal. |
+| [url-normalization.php](url-normalization.php) | URL normalization demo (standalone). Optional `--api` to call `inspectUrl()` with normalizer (requires credentials). |
+| [batch-config.php](batch-config.php) | Batch URL inspection with BatchConfig (limits, cooldown, retries). |
+| [rate-limiter.php](rate-limiter.php) | RateLimiter for QPD/QPM per API family. |
 
-Shared setup (credentials, command registration) is in [bootstrap.php](bootstrap.php).
+Shared setup (credentials) is in [bootstrap.php](bootstrap.php).
 
 ### URL inspection and business output model
 
-The URL inspection command and API response include an optional **business output model** (`IndexingCheckResult`) when index status data is available. It provides a normalized result with:
+The URL inspection API response includes an optional **business output model** (`IndexingCheckResult`) when index status data is available:
 
 - **Primary status:** `INDEXED` \| `NOT_INDEXED` \| `UNKNOWN`
 - **Confidence:** `high` \| `medium` \| `low`
@@ -41,28 +50,16 @@ The URL inspection command and API response include an optional **business outpu
 - **Checked at:** timestamp of evaluation
 - **Source type:** `authoritative` \| `heuristic`
 
-**Operating mode:** Use `--mode=strict` (default; never INDEXED high without authoritative data) or `--mode=best-effort` (allows heuristic INDEXED with `HEURISTIC_ONLY` when data is inconclusive). When using the API, pass `OperatingMode::STRICT` or `OperatingMode::BEST_EFFORT` as the third argument to `inspectUrl()`.
-
-Use [inspect-url.php](inspect-url.php) to see it in the CLI output (section "Business output (indexing check)"). Use [inspect-url-business-model.php](inspect-url-business-model.php) to access it in your own code via `$result->indexingCheckResult` (with URL normalizer applied before the API call).
+**Operating mode:** Use `--mode=strict` (default) or `--mode=best-effort` in [inspect-url.php](inspect-url.php). When using the API, pass `OperatingMode::STRICT` or `OperatingMode::BEST_EFFORT` as the third argument to `inspectUrl()`.
 
 ### Batch URL inspection
 
-[inspect-batch-urls.php](inspect-batch-urls.php) demonstrates `inspectBatchUrls()`: pass a list of URLs and optionally mark some as critical. The batch verdict is **FAIL** if any critical URL is NOT_INDEXED. Run `php examples/inspect-batch-urls.php` or add `--critical=https://example.com/,https://example.com/key` to test critical URL handling.
+[inspect-batch-urls.php](inspect-batch-urls.php) demonstrates `inspectBatchUrls()`: pass a list of URLs and optionally mark some as critical. The batch verdict is **FAIL** if any critical URL is NOT_INDEXED.
 
 ### Indexing run comparison
 
-[compare-indexing-runs.php](compare-indexing-runs.php) demonstrates `compareIndexingRuns()`: run two batch inspections (e.g. previous vs current) and get a list of changes (NEWLY_INDEXED, DROPPED_FROM_INDEX, BECAME_UNKNOWN, RECOVERED_FROM_UNKNOWN), delta counts by status, and dominant reason codes. For real monitoring, store the first run and compare with a later run. Run `php examples/compare-indexing-runs.php`.
+[compare-indexing-runs.php](compare-indexing-runs.php) demonstrates `compareIndexingRuns()`: run two batch inspections (e.g. previous vs current) and get a list of changes (NEWLY_INDEXED, DROPPED_FROM_INDEX, BECAME_UNKNOWN, RECOVERED_FROM_UNKNOWN), delta counts by status, and dominant reason codes.
 
 ### URL normalization
 
-[url-normalization.php](url-normalization.php) demonstrates `UrlNormalizer` and `UrlNormalizationRules`: fragment removal, trailing slash (preserve/add/remove), stripping `utm_*` and `gclid`. Run `php examples/url-normalization.php` for the standalone demo; add `--api` and set `GOOGLE_CREDENTIALS_PATH` to call `inspectUrl()` with the normalizer.
-
-## Direct CLI invocation
-
-You can also run commands directly from the project root:
-
-```bash
-php bin/pekral-google <command> [arguments] [options]
-```
-
-Common options: `-c, --credentials=<path>`, `-j, --json`.
+[url-normalization.php](url-normalization.php) demonstrates `UrlNormalizer` and `UrlNormalizationRules`: fragment removal, trailing slash (preserve/add/remove), stripping `utm_*` and `gclid`. Add `--api` and set `GOOGLE_CREDENTIALS_PATH` to call `inspectUrl()` with the normalizer.

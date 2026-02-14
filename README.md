@@ -1,12 +1,11 @@
 # Google Search Console PHP Wrapper
 
-A modern PHP wrapper for the Google Search Console API, providing typed DTOs, clean interfaces, and ready-to-use CLI commands.
+A modern PHP wrapper for the Google Search Console API, providing typed DTOs and clean interfaces.
 
 ## Why This Package?
 
-- **Simple Authentication** - Just provide the path to your credentials file
+- **Simple Authentication** — Service account (JSON path) or OAuth2 with refresh token
 - **Typed DTOs** - All API responses are mapped to PHP objects with full type safety
-- **CLI Commands** - Ready-to-use Symfony Console commands for quick access
 - **Clean Architecture** - Separated concerns with factories, builders, and validators
 
 ## Who Is It For?
@@ -15,15 +14,19 @@ A modern PHP wrapper for the Google Search Console API, providing typed DTOs, cl
 - Developers building SEO monitoring tools
 - DevOps teams tracking indexation status
 
+## Contents
+
+- [Features](#features) · [Installation](#installation) · [Quick Start](#quick-start) · [Available Methods](#available-methods) · [Examples](#examples) · [Error Handling](#error-handling) · [Setting Up Google Credentials](#setting-up-google-credentials)
+
 ## Features
 
-- **URL Inspection** – Low-level API: full result (index status, verdict, coverage state, mobile usability, canonicals). Returns `UrlInspectionResult`.
-- **Index Status Checker** – Business API: `checkIndexStatus(siteUrl, url, context?)` returns `IndexStatusCheckResult` (status, reason_codes, confidence, checked_at, source_type). Use for monitoring and status-only checks; use `inspectUrl()` when you need full inspection data.
-- **Batch URL Inspection** – Inspect multiple URLs in one call; get per-URL results, aggregation (INDEXED/NOT_INDEXED/UNKNOWN counts, reason code overview), and optional **critical URLs** with batch verdict (FAIL if any critical URL is NOT_INDEXED). Configurable batch size limits, cooldown with retries for temporary errors, and hard/soft failure distinction
-- **Indexing run comparison** – Compare two indexing runs (e.g. previous vs current); get list of changes (NEWLY_INDEXED, DROPPED_FROM_INDEX, BECAME_UNKNOWN, RECOVERED_FROM_UNKNOWN), delta counts by status, and dominant reason codes from the current run
-- **Operating mode** – `strict` (default: never INDEXED high without authoritative data) or `best-effort` (allows heuristic INDEXED with HEURISTIC_ONLY when inconclusive)
-- **URL normalization** – Optional normalizer for API calls: remove fragment, trailing slash (preserve/add/remove), strip `utm_*` and `gclid`. Configurable via `UrlNormalizationRules`; use normalized URLs for `inspectUrl` and `requestIndexing` (e.g. batch comparison and deduplication)
-- **Request Indexing** – Submit URL notifications (URL_UPDATED / URL_DELETED) via the Google Indexing API
+- **URL Inspection** — Full inspection result: index status, coverage state, mobile usability, canonicals. Returns `UrlInspectionResult`.
+- **Index Status Checker** — Simple status check: `checkIndexStatus()` returns `IndexStatusCheckResult` (status, reason codes, confidence). Use for monitoring; use `inspectUrl()` for full inspection data.
+- **Batch URL Inspection** — Inspect many URLs at once; per-URL results, aggregation (INDEXED/NOT_INDEXED/UNKNOWN counts), optional critical URLs and batch verdict (FAIL if any critical URL is NOT_INDEXED). Configurable batch limits, cooldown and retries for temporary errors.
+- **Indexing run comparison** — Compare two runs (e.g. before/after): list of changes (NEWLY_INDEXED, DROPPED_FROM_INDEX, …), deltas by status, and reason code overview.
+- **Operating mode** — `strict` (default) or `best-effort` (allows heuristic INDEXED when data is inconclusive).
+- **URL normalization** — Optional normalizer before API calls: remove fragment, trailing slash, `utm_*` and `gclid`. Configure via `UrlNormalizationRules`.
+- **Request Indexing** — Submit URL_UPDATED or URL_DELETED notifications via the Google Indexing API.
 
 ## Installation
 
@@ -34,9 +37,12 @@ composer require pekral/google-console
 ## Requirements
 
 - PHP 8.4+
-- Google Service Account with access to Search Console API
+- **Service account:** Google Service Account with access to Search Console API (add the service account email as a user in Search Console), or
+- **OAuth2:** OAuth2 client credentials (Web application or Desktop) and a refresh token obtained via the authorization code flow
 
 ## Quick Start
+
+**Service Account (recommended for server-to-server):**
 
 ```php
 use Pekral\GoogleConsole\GoogleConsole;
@@ -50,6 +56,20 @@ $sites = $console->getSiteList();
 foreach ($sites as $site) {
     echo $site->siteUrl . ' - ' . $site->permissionLevel . PHP_EOL;
 }
+```
+
+**OAuth2 with refresh token (when the end user authorizes your app):**
+
+```php
+use Pekral\GoogleConsole\GoogleConsole;
+
+// Create instance from OAuth2 client credentials and stored refresh token
+$console = GoogleConsole::fromOAuth2RefreshToken(
+    '/path/to/client_secret_*.json',
+    'user_refresh_token_from_authorization_code_flow',
+);
+
+$sites = $console->getSiteList();
 ```
 
 ## Available Methods
@@ -177,12 +197,13 @@ foreach ($result->criticalUrlResults as $perUrl) {
 
 For large URL sets, consider chunking or running in a background job to avoid timeouts and API rate limits.
 
-### Batch Configuration (Limits, Cooldown, Failure Handling)
+### Batch configuration (limits, cooldown, failures)
 
-Pass a `BatchConfig` to `GoogleConsole` to enable:
-- **Batch size limits** – reject batches that exceed a configurable maximum (hard failure)
-- **Cooldown with retries** – exponential backoff with jitter between retries on temporary API errors (rate limit, timeout, server error)
-- **Soft failure handling** – record unreachable URLs as `UNKNOWN` with a reason code instead of throwing
+Pass a `BatchConfig` into `GoogleConsole` to enable:
+
+- **Batch size limits** — Reject batches over a configurable maximum (hard failure).
+- **Cooldown with retries** — Exponential backoff with jitter on temporary errors (rate limit, timeout, server error).
+- **Soft failure handling** — Record unreachable URLs as `UNKNOWN` with a reason code instead of throwing.
 
 ```php
 use Pekral\GoogleConsole\Config\BatchConfig;
@@ -292,49 +313,33 @@ Use `UrlNormalizationRules::defaults()` for fragment-only removal, or construct 
 | Status-only (monitoring, health checks) | `checkIndexStatus(siteUrl, url, context?)` | `IndexStatusCheckResult` (status, reason_codes, confidence, checked_at, source_type, url) |
 | Full inspection (mobile, canonicals, coverage state) | `inspectUrl(siteUrl, inspectionUrl, operatingMode?, context?)` | `UrlInspectionResult` (raw API fields + optional `indexingCheckResult`) |
 
-`inspectUrl` remains the low-level call; it is not deprecated. Prefer `checkIndexStatus()` when you only need indexing status and reason codes. See [MIGRATION.md](MIGRATION.md) for migration notes.
+`inspectUrl` remains the low-level call; it is not deprecated. Prefer `checkIndexStatus()` when you only need indexing status and reason codes.
 
-## CLI Commands
+## Examples
 
-The package includes ready-to-use Symfony Console commands:
-
-```bash
-# List all registered sites
-bin/pekral-google list-sites --credentials=/path/to/credentials.json
-
-# Get information about a specific site
-bin/pekral-google get-site https://example.com/ --credentials=/path/to/credentials.json
-
-# Get search analytics data
-bin/pekral-google search-analytics https://example.com/ --credentials=/path/to/credentials.json --days=30
-
-# Inspect a URL (default: strict mode)
-bin/pekral-google inspect-url https://example.com/ https://example.com/page --credentials=/path/to/credentials.json
-
-# Inspect with best-effort mode (allows heuristic INDEXED when data is inconclusive)
-bin/pekral-google inspect-url https://example.com/ https://example.com/page --credentials=/path/to/credentials.json --mode=best-effort
-
-# JSON output
-bin/pekral-google inspect-url https://example.com/ https://example.com/page --credentials=/path/to/credentials.json --json
-
-# Request indexing for a URL
-bin/pekral-google request-indexing https://example.com/new-page --credentials=/path/to/credentials.json
-
-# Request URL removal from the index
-bin/pekral-google request-indexing https://example.com/removed-page --credentials=/path/to/credentials.json --delete
-```
-
-**Batch URL inspection** and **indexing run comparison** (programmatic examples, no CLI command):
+Run the example scripts. For service account, set `GOOGLE_CREDENTIALS_PATH`. For OAuth2, set `GOOGLE_OAUTH2_CREDENTIALS_PATH` and `GOOGLE_REFRESH_TOKEN` (see [examples/README.md](examples/README.md)).
 
 ```bash
+php examples/list-sites.php
+php examples/list-sites-oauth2.php   # OAuth2: needs GOOGLE_OAUTH2_CREDENTIALS_PATH + GOOGLE_REFRESH_TOKEN
+php examples/get-site.php
+php examples/search-analytics.php
+php examples/inspect-url.php
+php examples/inspect-url.php --mode=best-effort
+php examples/inspect-url.php --json
+php examples/request-indexing.php
 php examples/inspect-batch-urls.php
 php examples/inspect-batch-urls.php --critical=https://example.com/,https://example.com/key-page
 php examples/compare-indexing-runs.php
 ```
 
+See [examples/README.md](examples/README.md) for a full overview.
+
 ## Error Handling
 
-All API errors are wrapped in `GoogleConsoleFailure` exception with detailed context:
+### API errors
+
+All API errors are wrapped in `GoogleConsoleFailure` with detailed context:
 
 ```php
 use Pekral\GoogleConsole\Exception\GoogleConsoleFailure;
@@ -347,7 +352,11 @@ try {
 }
 ```
 
-### Batch Size Limit
+### Quota and rate limiting
+
+When the optional `RateLimiter` is used (e.g. `new GoogleConsole($client, rateLimiter: new RateLimiter())`), the library enforces QPD/QPM per API family. If a limit is exceeded, it throws `QuotaExceededException` (extends `GoogleConsoleFailure`). You can use `$e->getRetryAfterSeconds()` for retry logic. Without a rate limiter, the library does not enforce quotas; Google may return HTTP 429, which is then wrapped in `GoogleConsoleFailure`.
+
+### Batch size limit
 
 When using `BatchConfig`, exceeding the batch size throws `BatchSizeLimitExceeded`:
 
@@ -364,12 +373,21 @@ try {
 
 ## Setting Up Google Credentials
 
+### Service Account
+
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project or select an existing one
 3. Enable the **Search Console API**
 4. Create a **Service Account** under "IAM & Admin" > "Service Accounts"
 5. Download the JSON credentials file
 6. In Google Search Console, add the service account email as a user with appropriate permissions
+
+### OAuth2 (user consent)
+
+1. In Google Cloud Console, create **OAuth 2.0 Client ID** credentials (Web application or Desktop).
+2. Enable the **Search Console API** and request scopes: `https://www.googleapis.com/auth/webmasters.readonly` (and indexing scope if you use the Indexing API).
+3. Run the authorization code flow: redirect the user to the consent URL, then exchange the returned `code` for tokens. Store the `refresh_token`.
+4. Use `GoogleConsole::fromOAuth2RefreshToken($pathToClientSecretJson, $refreshToken)` or `GoogleConsoleFactory::fromOAuth2RefreshToken(...)`. For credentials from env or secrets, build `OAuth2Config` and use `GoogleConsoleFactory::fromOAuth2Config($config)`.
 
 ## License
 

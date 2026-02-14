@@ -11,13 +11,15 @@ declare(strict_types = 1);
 
 require __DIR__ . '/bootstrap.php';
 
-use Symfony\Component\Console\Input\ArrayInput;
-use Symfony\Component\Console\Output\ConsoleOutput;
+use Pekral\GoogleConsole\Factory\GoogleConsoleFactory;
 
-$input = new ArrayInput([
-    '--credentials' => $credentials,
-    'command' => 'pekral:google-site-get',
-    'site-url' => 'sc-domain:pekral.cz',
-]);
+$console = GoogleConsoleFactory::fromCredentialsPath($credentials);
+$site = $console->getSite('sc-domain:pekral.cz');
 
-$application->run($input, new ConsoleOutput());
+echo "Google Search Console - Site Details\n";
+echo str_repeat('─', 60) . "\n\n";
+echo "Site Information\n";
+echo '  Site URL      ' . $site->siteUrl . "\n";
+echo '  Permission    ' . $site->permissionLevel . "\n";
+echo '  Is Owner      ' . ($site->isOwner() ? 'Yes' : 'No') . "\n";
+echo '  Full Access   ' . ($site->hasFullAccess() ? 'Yes' : 'No') . "\n";
