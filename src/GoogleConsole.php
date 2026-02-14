@@ -34,6 +34,7 @@ use Pekral\GoogleConsole\DTO\PerUrlInspectionResult;
 use Pekral\GoogleConsole\DTO\SearchAnalyticsRow;
 use Pekral\GoogleConsole\DTO\Site;
 use Pekral\GoogleConsole\DTO\UrlInspectionResult;
+use Pekral\GoogleConsole\Enum\ApiFamily;
 use Pekral\GoogleConsole\Enum\BatchVerdict;
 use Pekral\GoogleConsole\Enum\IndexingCheckConfidence;
 use Pekral\GoogleConsole\Enum\IndexingCheckSourceType;
@@ -44,6 +45,7 @@ use Pekral\GoogleConsole\Exception\GoogleConsoleFailure;
 use Pekral\GoogleConsole\Factory\GoogleClientFactory;
 use Pekral\GoogleConsole\Handler\BatchFailureHandler;
 use Pekral\GoogleConsole\Helper\TypeHelper;
+use Pekral\GoogleConsole\RateLimit\RateLimiterInterface;
 use Pekral\GoogleConsole\UrlNormalizer\UrlNormalizer;
 use Pekral\GoogleConsole\Validator\DataValidator;
 use Throwable;
@@ -71,6 +73,7 @@ final class GoogleConsole implements ConsoleContract
         private readonly IndexingRunComparator $indexingRunComparator = new IndexingRunComparator(),
         private readonly ?BatchConfig $batchConfig = null,
         private readonly BatchFailureHandler $batchFailureHandler = new BatchFailureHandler(),
+        private readonly ?RateLimiterInterface $rateLimiter = null,
     ) {
     }
 
@@ -96,9 +99,12 @@ final class GoogleConsole implements ConsoleContract
      * Retrieves all sites registered in Google Search Console for the authenticated account.
      *
      * @return array<\Pekral\GoogleConsole\DTO\Site> List of sites with their URLs and permission levels
+     * @throws \Pekral\GoogleConsole\Exception\QuotaExceededException When rate limit (Other resources) is exceeded
      */
     public function getSiteList(): array
     {
+        $this->rateLimiter?->consume(ApiFamily::OTHER);
+
         $sites = $this->getWebmastersService()->sites;
         assert($sites instanceof WebmastersService\Resource\Sites);
 
@@ -121,6 +127,7 @@ final class GoogleConsole implements ConsoleContract
      * @param int $rowLimit Maximum number of rows to return (max 25000)
      * @param int $startRow Starting row offset for pagination
      * @return array<\Pekral\GoogleConsole\DTO\SearchAnalyticsRow> Search performance data grouped by dimensions
+     * @throws \Pekral\GoogleConsole\Exception\QuotaExceededException When Search Analytics quota (QPM per site) is exceeded
      * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure When invalid dimensions are provided or API fails
      */
     public function getSearchAnalytics(
@@ -132,6 +139,7 @@ final class GoogleConsole implements ConsoleContract
         int $startRow = 0,
     ): array {
         $this->dataValidator->validateDimensions($dimensions);
+        $this->rateLimiter?->consume(ApiFamily::SEARCH_ANALYTICS, $siteUrl);
 
         try {
             $request = $this->requestDataBuilder->buildSearchAnalyticsRequest($startDate, $endDate, $dimensions, $rowLimit, $startRow);
@@ -160,6 +168,7 @@ final class GoogleConsole implements ConsoleContract
      * @param \Pekral\GoogleConsole\Enum\OperatingMode|null $operatingMode strict (default) or best-effort
      * @param \Pekral\GoogleConsole\DTO\InspectionContext|null $context optional request context (site, normalizer, mode)
      * @return \Pekral\GoogleConsole\DTO\UrlInspectionResult Detailed inspection result with indexing and mobile status
+     * @throws \Pekral\GoogleConsole\Exception\QuotaExceededException When URL Inspection quota (QPD/QPM per site) is exceeded
      * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure When the inspection request fails
      */
     public function inspectUrl(
@@ -171,6 +180,7 @@ final class GoogleConsole implements ConsoleContract
         $effectiveSiteUrl = $context !== null ? ($context->siteUrl ?? $siteUrl) : $siteUrl;
         $effectiveMode = $context !== null ? ($context->operatingMode ?? $operatingMode) : $operatingMode;
         $inspectionUrl = $this->normalizeUrlWith($inspectionUrl, $context);
+        $this->rateLimiter?->consume(ApiFamily::URL_INSPECTION, $effectiveSiteUrl);
 
         $request = new InspectUrlIndexRequest();
         $request->setInspectionUrl($inspectionUrl);
@@ -291,10 +301,13 @@ final class GoogleConsole implements ConsoleContract
      *
      * @param string $siteUrl The site URL to retrieve
      * @return \Pekral\GoogleConsole\DTO\Site Site information including URL and permission level
+     * @throws \Pekral\GoogleConsole\Exception\QuotaExceededException When rate limit (Other resources) is exceeded
      * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure When the site is not found or access is denied
      */
     public function getSite(string $siteUrl): Site
     {
+        $this->rateLimiter?->consume(ApiFamily::OTHER, $siteUrl);
+
         try {
             $sites = $this->getWebmastersService()->sites;
             assert($sites instanceof WebmastersService\Resource\Sites);
@@ -318,10 +331,13 @@ final class GoogleConsole implements ConsoleContract
      * @param string $url The full URL to request indexing for
      * @param \Pekral\GoogleConsole\Enum\IndexingNotificationType $type The type of notification
      * @return \Pekral\GoogleConsole\DTO\IndexingResult Result containing the URL and notification time
+     * @throws \Pekral\GoogleConsole\Exception\QuotaExceededException When Indexing API quota (QPD/QPM per project) is exceeded
      * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure When the indexing request fails
      */
     public function requestIndexing(string $url, IndexingNotificationType $type = IndexingNotificationType::URL_UPDATED): IndexingResult
     {
+        $this->rateLimiter?->consume(ApiFamily::INDEXING);
+
         $url = $this->normalizeUrlIfConfigured($url);
 
         $endpoint = 'https://indexing.googleapis.com/v3/urlNotifications:publish';
