@@ -30,6 +30,7 @@ use Pekral\GoogleConsole\DTO\PerUrlInspectionResult;
 use Pekral\GoogleConsole\DTO\SearchAnalyticsRow;
 use Pekral\GoogleConsole\DTO\Site;
 use Pekral\GoogleConsole\DTO\UrlInspectionResult;
+use Pekral\GoogleConsole\Enum\ApiFamily;
 use Pekral\GoogleConsole\Enum\BatchVerdict;
 use Pekral\GoogleConsole\Enum\FailureType;
 use Pekral\GoogleConsole\Enum\IndexingChangeType;
@@ -39,8 +40,10 @@ use Pekral\GoogleConsole\Enum\IndexingCheckStatus;
 use Pekral\GoogleConsole\Enum\IndexingNotificationType;
 use Pekral\GoogleConsole\Exception\BatchSizeLimitExceeded;
 use Pekral\GoogleConsole\Exception\GoogleConsoleFailure;
+use Pekral\GoogleConsole\Exception\QuotaExceededException;
 use Pekral\GoogleConsole\Factory\GoogleClientFactory;
 use Pekral\GoogleConsole\GoogleConsole;
+use Pekral\GoogleConsole\RateLimit\RateLimiterInterface;
 use Pekral\GoogleConsole\UrlNormalizer\UrlNormalizationRules;
 use Pekral\GoogleConsole\UrlNormalizer\UrlNormalizer;
 
@@ -112,6 +115,27 @@ describe(GoogleConsole::class, function (): void {
 
         expect($console->getClient())->toBeInstanceOf(Client::class);
     });
+
+    it('throws QuotaExceededException when rate limiter throws on getSiteList', function (): void {
+        $tempFile = createTestCredentialsFile();
+        $config = GoogleConfig::fromCredentialsPath($tempFile);
+        $client = new GoogleClientFactory()->create($config);
+        unlink($tempFile);
+
+        $throwingLimiter = new class implements RateLimiterInterface {
+
+            // phpcs:ignore SlevomatCodingStandard.Functions.UnusedParameter.UnusedParameter -- interface implementation, params required by signature
+            public function consume(ApiFamily $_apiFamily, ?string $_siteUrl = null): void
+            {
+                throw new QuotaExceededException('Quota exceeded');
+            }
+
+        };
+
+        $console = new GoogleConsole($client, rateLimiter: $throwingLimiter);
+
+        $console->getSiteList();
+    })->throws(QuotaExceededException::class, 'Quota exceeded');
 
     it('throws exception for invalid dimension', function (): void {
         $console = createGoogleConsole();

@@ -93,6 +93,7 @@
             "php examples/inspect-url-business-model.php",
             "php examples/inspect-batch-urls.php",
             "php examples/batch-config.php",
+            "php examples/rate-limiter.php",
             "php examples/compare-indexing-runs.php",
             "php examples/request-indexing.php",
             "php examples/url-normalization.php"
