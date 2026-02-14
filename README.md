@@ -17,7 +17,8 @@ A modern PHP wrapper for the Google Search Console API, providing typed DTOs, cl
 
 ## Features
 
-- **URL Inspection** – Index status, verdict, coverage state, mobile usability; optional **business output model** (primary status INDEXED/NOT_INDEXED/UNKNOWN, confidence, reason codes, source type authoritative/heuristic)
+- **URL Inspection** – Low-level API: full result (index status, verdict, coverage state, mobile usability, canonicals). Returns `UrlInspectionResult`.
+- **Index Status Checker** – Business API: `checkIndexStatus(siteUrl, url, context?)` returns `IndexStatusCheckResult` (status, reason_codes, confidence, checked_at, source_type). Use for monitoring and status-only checks; use `inspectUrl()` when you need full inspection data.
 - **Batch URL Inspection** – Inspect multiple URLs in one call; get per-URL results, aggregation (INDEXED/NOT_INDEXED/UNKNOWN counts, reason code overview), and optional **critical URLs** with batch verdict (FAIL if any critical URL is NOT_INDEXED). Configurable batch size limits, cooldown with retries for temporary errors, and hard/soft failure distinction
 - **Indexing run comparison** – Compare two indexing runs (e.g. previous vs current); get list of changes (NEWLY_INDEXED, DROPPED_FROM_INDEX, BECAME_UNKNOWN, RECOVERED_FROM_UNKNOWN), delta counts by status, and dominant reason codes from the current run
 - **Operating mode** – `strict` (default: never INDEXED high without authoritative data) or `best-effort` (allows heuristic INDEXED with HEURISTIC_ONLY when inconclusive)
@@ -99,9 +100,27 @@ foreach ($analytics as $row) {
 
 **Available dimensions:** `query`, `page`, `country`, `device`, `searchAppearance`, `date`
 
-### URL Inspection
+### Index Status Checker (recommended for status-only checks)
 
-Inspects a specific URL to check its indexing status and mobile usability.
+Checks index status of a URL and returns a business DTO with status and reason codes. Use when you only need indexing status (e.g. monitoring, health checks). For full inspection data (mobile usability, canonicals, coverage state) use `inspectUrl()`.
+
+```php
+$result = $console->checkIndexStatus(
+    siteUrl: 'https://example.com/',
+    url: 'https://example.com/article',
+    // operatingMode: null = OperatingMode::STRICT (default), or OperatingMode::BEST_EFFORT
+    // context: optional InspectionContext (site URL, URL normalizer, mode)
+);
+
+echo $result->url . ' => ' . $result->status->value . PHP_EOL;  // INDEXED | NOT_INDEXED | UNKNOWN
+echo 'Reason codes: ' . implode(', ', array_map(fn ($c) => $c->value, $result->reasonCodes)) . PHP_EOL;
+echo 'Confidence: ' . $result->confidence->value . PHP_EOL;
+echo 'Checked at: ' . $result->checkedAt->format('c') . PHP_EOL;
+```
+
+### URL Inspection (full result)
+
+Inspects a specific URL and returns the full API result: indexing status, coverage state, mobile usability, canonicals. Use when you need all inspection fields; for status-only use `checkIndexStatus()`.
 
 ```php
 $inspection = $console->inspectUrl(
@@ -257,12 +276,21 @@ use Pekral\GoogleConsole\UrlNormalizer\UrlNormalizationRules;
 $normalizer = new UrlNormalizer(UrlNormalizationRules::forApiCalls());
 $console = new GoogleConsole($client, urlNormalizer: $normalizer);
 
-// inspectUrl() and requestIndexing() will receive normalized URLs
-$console->inspectUrl('https://example.com/', 'https://example.com/page?utm_source=google#section');
+// inspectUrl(), checkIndexStatus(), and requestIndexing() will receive normalized URLs
+$console->checkIndexStatus('https://example.com/', 'https://example.com/page?utm_source=google#section');
 // API is called with: https://example.com/page
 ```
 
 Use `UrlNormalizationRules::defaults()` for fragment-only removal, or construct custom rules (trailing slash: `preserve` / `add` / `remove`; `stripUtmParams`, `stripGclid`).
+
+### API overview: Index Status Checker vs URL Inspection
+
+| Use case | Method | Return type |
+|----------|--------|-------------|
+| Status-only (monitoring, health checks) | `checkIndexStatus(siteUrl, url, context?)` | `IndexStatusCheckResult` (status, reason_codes, confidence, checked_at, source_type, url) |
+| Full inspection (mobile, canonicals, coverage state) | `inspectUrl(siteUrl, inspectionUrl, operatingMode?, context?)` | `UrlInspectionResult` (raw API fields + optional `indexingCheckResult`) |
+
+`inspectUrl` remains the low-level call; it is not deprecated. Prefer `checkIndexStatus()` when you only need indexing status and reason codes. See [MIGRATION.md](MIGRATION.md) for migration notes.
 
 ## CLI Commands
 

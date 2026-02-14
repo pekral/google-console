@@ -9,6 +9,7 @@ use Google\Client;
 use Pekral\GoogleConsole\DTO\BatchUrlInspectionResult;
 use Pekral\GoogleConsole\DTO\IndexingComparisonResult;
 use Pekral\GoogleConsole\DTO\IndexingResult;
+use Pekral\GoogleConsole\DTO\IndexStatusCheckResult;
 use Pekral\GoogleConsole\DTO\InspectionContext;
 use Pekral\GoogleConsole\DTO\Site;
 use Pekral\GoogleConsole\DTO\UrlInspectionResult;
@@ -69,6 +70,23 @@ interface ConsoleContract
         ?OperatingMode $operatingMode = null,
         ?InspectionContext $context = null,
     ): UrlInspectionResult;
+
+    /**
+     * Checks index status of a URL and returns a business DTO (status, reason_codes, confidence, etc.).
+     * For full inspection data use inspectUrl().
+     *
+     * @param string $siteUrl The site URL that owns the inspected page
+     * @param string $url The full URL to check
+     * @param \Pekral\GoogleConsole\Enum\OperatingMode|null $operatingMode strict (default) or best-effort
+     * @param \Pekral\GoogleConsole\DTO\InspectionContext|null $context optional request context (site, normalizer, mode)
+     * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure
+     */
+    public function checkIndexStatus(
+        string $siteUrl,
+        string $url,
+        ?OperatingMode $operatingMode = null,
+        ?InspectionContext $context = null,
+    ): IndexStatusCheckResult;
 
     /**
      * Inspects multiple URLs and returns per-URL results plus aggregation.
