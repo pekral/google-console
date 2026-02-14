@@ -15,8 +15,10 @@ use Google\Service\SearchConsole\UrlInspectionResult as GoogleUrlInspectionResul
 use Google\Service\Webmasters as WebmastersService;
 use Google\Service\Webmasters\ApiDataRow;
 use Google\Service\Webmasters\SearchAnalyticsQueryResponse;
+use Google\Service\Webmasters\SitemapsListResponse;
 use Google\Service\Webmasters\SitesListResponse;
 use Google\Service\Webmasters\WmxSite;
+use Google\Service\Webmasters\WmxSitemap;
 use GuzzleHttp\Psr7\Request;
 use Pekral\GoogleConsole\Config\BatchConfig;
 use Pekral\GoogleConsole\Config\GoogleConfig;
@@ -24,6 +26,7 @@ use Pekral\GoogleConsole\Config\OAuth2Config;
 use Pekral\GoogleConsole\DataBuilder\BatchAggregationBuilder;
 use Pekral\GoogleConsole\DataBuilder\RequestDataBuilder;
 use Pekral\GoogleConsole\DataBuilder\SiteDataBuilder;
+use Pekral\GoogleConsole\DataBuilder\SitemapDataBuilder;
 use Pekral\GoogleConsole\DataBuilder\UrlInspectionDataBuilder;
 use Pekral\GoogleConsole\DTO\BatchUrlInspectionResult;
 use Pekral\GoogleConsole\DTO\IndexingCheckResult;
@@ -34,6 +37,7 @@ use Pekral\GoogleConsole\DTO\InspectionContext;
 use Pekral\GoogleConsole\DTO\PerUrlInspectionResult;
 use Pekral\GoogleConsole\DTO\SearchAnalyticsRow;
 use Pekral\GoogleConsole\DTO\Site;
+use Pekral\GoogleConsole\DTO\Sitemap;
 use Pekral\GoogleConsole\DTO\UrlInspectionResult;
 use Pekral\GoogleConsole\Enum\ApiFamily;
 use Pekral\GoogleConsole\Enum\BatchVerdict;
@@ -66,6 +70,7 @@ final class GoogleConsole implements ConsoleContract
     public function __construct(
         private readonly Client $client,
         private readonly SiteDataBuilder $siteDataBuilder = new SiteDataBuilder(),
+        private readonly SitemapDataBuilder $sitemapDataBuilder = new SitemapDataBuilder(),
         private readonly UrlInspectionDataBuilder $urlInspectionDataBuilder = new UrlInspectionDataBuilder(),
         private readonly RequestDataBuilder $requestDataBuilder = new RequestDataBuilder(),
         private readonly DataValidator $dataValidator = new DataValidator(),
@@ -339,6 +344,120 @@ final class GoogleConsole implements ConsoleContract
         } catch (Exception $e) {
             throw new GoogleConsoleFailure(
                 $this->formatApiError($e, sprintf('Failed to get site \'%s\'', $siteUrl)),
+                $e->getCode(),
+                $e,
+            );
+        }
+    }
+
+    /**
+     * Lists sitemaps submitted for the site, optionally filtered by sitemap index URL.
+     *
+     * @param string $siteUrl The site URL (e.g. https://example.com/ or sc-domain:example.com)
+     * @param string|null $sitemapIndex Optional URL of a sitemap index to filter by
+     * @return list<\Pekral\GoogleConsole\DTO\Sitemap>
+     * @throws \Pekral\GoogleConsole\Exception\QuotaExceededException When rate limit (Other) is exceeded
+     * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure When the API request fails
+     */
+    public function getSitemaps(string $siteUrl, ?string $sitemapIndex = null): array
+    {
+        $this->rateLimiter?->consume(ApiFamily::OTHER, $siteUrl);
+
+        try {
+            $sitemaps = $this->getWebmastersService()->sitemaps;
+            assert($sitemaps instanceof WebmastersService\Resource\Sitemaps);
+
+            $optParams = $sitemapIndex !== null ? ['sitemapIndex' => $sitemapIndex] : [];
+            $response = $sitemaps->listSitemaps($siteUrl, $optParams);
+            assert($response instanceof SitemapsListResponse);
+
+            $entries = $response->getSitemap() ?? [];
+
+            return $this->sitemapDataBuilder->fromWmxSitemapArray($entries);
+        } catch (Exception $e) {
+            throw new GoogleConsoleFailure(
+                $this->formatApiError($e, sprintf('Failed to list sitemaps for site \'%s\'', $siteUrl)),
+                $e->getCode(),
+                $e,
+            );
+        }
+    }
+
+    /**
+     * Retrieves information about a specific sitemap.
+     *
+     * @param string $siteUrl The site URL that owns the sitemap
+     * @param string $feedpath The URL of the sitemap (e.g. https://example.com/sitemap.xml)
+     * @throws \Pekral\GoogleConsole\Exception\QuotaExceededException When rate limit (Other) is exceeded
+     * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure When the sitemap is not found or API fails
+     */
+    public function getSitemap(string $siteUrl, string $feedpath): Sitemap
+    {
+        $this->rateLimiter?->consume(ApiFamily::OTHER, $siteUrl);
+
+        try {
+            $sitemaps = $this->getWebmastersService()->sitemaps;
+            assert($sitemaps instanceof WebmastersService\Resource\Sitemaps);
+
+            $response = $sitemaps->get($siteUrl, $feedpath);
+            assert($response instanceof WmxSitemap);
+
+            return $this->sitemapDataBuilder->fromWmxSitemap($response);
+        } catch (Exception $e) {
+            throw new GoogleConsoleFailure(
+                $this->formatApiError($e, sprintf('Failed to get sitemap \'%s\' for site \'%s\'', $feedpath, $siteUrl)),
+                $e->getCode(),
+                $e,
+            );
+        }
+    }
+
+    /**
+     * Submits a sitemap for the site. Requires the webmasters scope (not just readonly).
+     *
+     * @param string $siteUrl The site URL that owns the sitemap
+     * @param string $feedpath The URL of the sitemap to submit (e.g. https://example.com/sitemap.xml)
+     * @throws \Pekral\GoogleConsole\Exception\QuotaExceededException When rate limit (Other) is exceeded
+     * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure When the API request fails (e.g. 403 if scope is readonly)
+     */
+    public function submitSitemap(string $siteUrl, string $feedpath): void
+    {
+        $this->rateLimiter?->consume(ApiFamily::OTHER, $siteUrl);
+
+        try {
+            $sitemaps = $this->getWebmastersService()->sitemaps;
+            assert($sitemaps instanceof WebmastersService\Resource\Sitemaps);
+
+            $sitemaps->submit($siteUrl, $feedpath);
+        } catch (Exception $e) {
+            throw new GoogleConsoleFailure(
+                $this->formatApiError($e, sprintf('Failed to submit sitemap \'%s\' for site \'%s\'', $feedpath, $siteUrl)),
+                $e->getCode(),
+                $e,
+            );
+        }
+    }
+
+    /**
+     * Deletes a sitemap from the site. Requires the webmasters scope (not just readonly).
+     *
+     * @param string $siteUrl The site URL that owns the sitemap
+     * @param string $feedpath The URL of the sitemap to delete
+     * @throws \Pekral\GoogleConsole\Exception\QuotaExceededException When rate limit (Other) is exceeded
+     * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure When the API request fails
+     */
+    public function deleteSitemap(string $siteUrl, string $feedpath): void
+    {
+        $this->rateLimiter?->consume(ApiFamily::OTHER, $siteUrl);
+
+        try {
+            $sitemaps = $this->getWebmastersService()->sitemaps;
+            assert($sitemaps instanceof WebmastersService\Resource\Sitemaps);
+
+            $sitemaps->delete($siteUrl, $feedpath);
+        } catch (Exception $e) {
+            throw new GoogleConsoleFailure(
+                $this->formatApiError($e, sprintf('Failed to delete sitemap \'%s\' for site \'%s\'', $feedpath, $siteUrl)),
                 $e->getCode(),
                 $e,
             );

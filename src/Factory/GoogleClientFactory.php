@@ -19,6 +19,7 @@ final class GoogleClientFactory
     {
         $client = new Client();
         $client->setApplicationName($config->applicationName);
+        $client->addScope(WebmastersService::WEBMASTERS);
         $client->addScope(WebmastersService::WEBMASTERS_READONLY);
         $client->addScope(SearchConsoleService::WEBMASTERS_READONLY);
         $client->addScope(self::INDEXING_SCOPE);
@@ -32,6 +33,7 @@ final class GoogleClientFactory
     {
         $client = new Client();
         $client->setApplicationName($config->applicationName);
+        $client->addScope(WebmastersService::WEBMASTERS);
         $client->addScope(WebmastersService::WEBMASTERS_READONLY);
         $client->addScope(SearchConsoleService::WEBMASTERS_READONLY);
         $client->addScope(self::INDEXING_SCOPE);

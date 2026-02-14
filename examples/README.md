@@ -32,6 +32,7 @@ php examples/<name>.php
 | [check-index-status.php](check-index-status.php) | Call `checkIndexStatus()` and print IndexStatusCheckResult (url, status, reason_codes, confidence, checked_at, source_type). Use for status-only checks. |
 | [inspect-url-business-model.php](inspect-url-business-model.php) | Call `inspectUrl()` with URL normalizer and print the indexing check result. Uses `UrlNormalizationRules::forApiCalls()`. |
 | [inspect-batch-urls.php](inspect-batch-urls.php) | Call `inspectBatchUrls()` with a list of URLs and optional critical URLs. Option: `--critical=url1,url2` |
+| [list-sitemaps.php](list-sitemaps.php) | List sitemaps for a site. Option: `--sitemap-index=<url>` to filter by sitemap index. |
 | [compare-indexing-runs.php](compare-indexing-runs.php) | Run `inspectBatchUrls()` twice and call `compareIndexingRuns()`. Prints changes, deltas, and dominant reason codes. |
 | [request-indexing.php](request-indexing.php) | Request indexing for a URL. Option: `--delete` for URL removal. |
 | [url-normalization.php](url-normalization.php) | URL normalization demo (standalone). Optional `--api` to call `inspectUrl()` with normalizer (requires credentials). |

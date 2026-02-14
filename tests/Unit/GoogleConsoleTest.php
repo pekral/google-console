@@ -13,8 +13,10 @@ use Google\Service\SearchConsole\UrlInspectionResult as GoogleUrlInspectionResul
 use Google\Service\Webmasters as WebmastersService;
 use Google\Service\Webmasters\ApiDataRow;
 use Google\Service\Webmasters\SearchAnalyticsQueryResponse;
+use Google\Service\Webmasters\SitemapsListResponse;
 use Google\Service\Webmasters\SitesListResponse;
 use Google\Service\Webmasters\WmxSite;
+use Google\Service\Webmasters\WmxSitemap;
 use GuzzleHttp\Client as HttpClient;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
@@ -29,6 +31,7 @@ use Pekral\GoogleConsole\DTO\InspectionContext;
 use Pekral\GoogleConsole\DTO\PerUrlInspectionResult;
 use Pekral\GoogleConsole\DTO\SearchAnalyticsRow;
 use Pekral\GoogleConsole\DTO\Site;
+use Pekral\GoogleConsole\DTO\Sitemap;
 use Pekral\GoogleConsole\DTO\UrlInspectionResult;
 use Pekral\GoogleConsole\Enum\ApiFamily;
 use Pekral\GoogleConsole\Enum\BatchVerdict;
@@ -267,6 +270,204 @@ describe(GoogleConsole::class, function (): void {
 
                 $console->getSite('https://nonexistent.com/');
             })->throws(GoogleConsoleFailure::class, 'Failed to get site \'https://nonexistent.com/\'');
+        });
+
+        describe('sitemaps', function (): void {
+            it('returns sitemap list', function (): void {
+                $console = createGoogleConsole();
+
+                $wmx = Mockery::mock(WmxSitemap::class);
+                $wmx->shouldReceive('getPath')->andReturn('https://example.com/sitemap.xml');
+                $wmx->shouldReceive('getLastSubmitted')->andReturn('2024-06-01T12:00:00.000Z');
+                $wmx->shouldReceive('getLastDownloaded')->andReturn(null);
+                $wmx->shouldReceive('getErrors')->andReturn(0);
+                $wmx->shouldReceive('getWarnings')->andReturn(0);
+                $wmx->shouldReceive('getIsPending')->andReturn(false);
+                $wmx->shouldReceive('getIsSitemapsIndex')->andReturn(false);
+                $wmx->shouldReceive('getType')->andReturn('sitemap');
+                $wmx->shouldReceive('getContents')->andReturn([]);
+
+                $listResponse = Mockery::mock(SitemapsListResponse::class);
+                $listResponse->shouldReceive('getSitemap')->andReturn([$wmx]);
+
+                $sitemapsResource = Mockery::mock(WebmastersService\Resource\Sitemaps::class);
+                $sitemapsResource->shouldReceive('listSitemaps')
+                    ->with('https://example.com/', [])
+                    ->andReturn($listResponse);
+
+                $webmastersService = Mockery::mock(WebmastersService::class);
+                $webmastersService->sitemaps = $sitemapsResource;
+
+                $reflection = new ReflectionClass($console);
+                $property = $reflection->getProperty('webmastersService');
+                $property->setValue($console, $webmastersService);
+
+                $sitemaps = $console->getSitemaps('https://example.com/');
+
+                expect($sitemaps)->toHaveCount(1)
+                    ->and($sitemaps[0])->toBeInstanceOf(Sitemap::class)
+                    ->and($sitemaps[0]->path)->toBe('https://example.com/sitemap.xml');
+            });
+
+            it('getSitemaps passes sitemapIndex when provided', function (): void {
+                $console = createGoogleConsole();
+
+                $listResponse = Mockery::mock(SitemapsListResponse::class);
+                $listResponse->shouldReceive('getSitemap')->andReturn([]);
+
+                $sitemapsResource = Mockery::mock(WebmastersService\Resource\Sitemaps::class);
+                $sitemapsResource->shouldReceive('listSitemaps')
+                    ->with('sc-domain:example.com', ['sitemapIndex' => 'https://example.com/sitemap_index.xml'])
+                    ->andReturn($listResponse);
+
+                $webmastersService = Mockery::mock(WebmastersService::class);
+                $webmastersService->sitemaps = $sitemapsResource;
+
+                $reflection = new ReflectionClass($console);
+                $property = $reflection->getProperty('webmastersService');
+                $property->setValue($console, $webmastersService);
+
+                $sitemaps = $console->getSitemaps('sc-domain:example.com', 'https://example.com/sitemap_index.xml');
+
+                expect($sitemaps)->toBe([]);
+            });
+
+            it('returns single sitemap from getSitemap', function (): void {
+                $console = createGoogleConsole();
+
+                $wmx = Mockery::mock(WmxSitemap::class);
+                $wmx->shouldReceive('getPath')->andReturn('https://example.com/sitemap.xml');
+                $wmx->shouldReceive('getLastSubmitted')->andReturn(null);
+                $wmx->shouldReceive('getLastDownloaded')->andReturn(null);
+                $wmx->shouldReceive('getErrors')->andReturn(0);
+                $wmx->shouldReceive('getWarnings')->andReturn(0);
+                $wmx->shouldReceive('getIsPending')->andReturn(false);
+                $wmx->shouldReceive('getIsSitemapsIndex')->andReturn(false);
+                $wmx->shouldReceive('getType')->andReturn('sitemap');
+                $wmx->shouldReceive('getContents')->andReturn([]);
+
+                $sitemapsResource = Mockery::mock(WebmastersService\Resource\Sitemaps::class);
+                $sitemapsResource->shouldReceive('get')
+                    ->with('https://example.com/', 'https://example.com/sitemap.xml')
+                    ->andReturn($wmx);
+
+                $webmastersService = Mockery::mock(WebmastersService::class);
+                $webmastersService->sitemaps = $sitemapsResource;
+
+                $reflection = new ReflectionClass($console);
+                $property = $reflection->getProperty('webmastersService');
+                $property->setValue($console, $webmastersService);
+
+                $sitemap = $console->getSitemap('https://example.com/', 'https://example.com/sitemap.xml');
+
+                expect($sitemap)->toBeInstanceOf(Sitemap::class)
+                    ->and($sitemap->path)->toBe('https://example.com/sitemap.xml');
+            });
+
+            it('submitSitemap calls API and returns void', function (): void {
+                $console = createGoogleConsole();
+
+                $sitemapsResource = Mockery::mock(WebmastersService\Resource\Sitemaps::class);
+                $sitemapsResource->shouldReceive('submit')
+                    ->with('https://example.com/', 'https://example.com/sitemap.xml')
+                    ->andReturn(null);
+
+                $webmastersService = Mockery::mock(WebmastersService::class);
+                $webmastersService->sitemaps = $sitemapsResource;
+
+                $reflection = new ReflectionClass($console);
+                $property = $reflection->getProperty('webmastersService');
+                $property->setValue($console, $webmastersService);
+
+                $console->submitSitemap('https://example.com/', 'https://example.com/sitemap.xml');
+            });
+
+            it('deleteSitemap calls API and returns void', function (): void {
+                $console = createGoogleConsole();
+
+                $sitemapsResource = Mockery::mock(WebmastersService\Resource\Sitemaps::class);
+                $sitemapsResource->shouldReceive('delete')
+                    ->with('https://example.com/', 'https://example.com/sitemap.xml')
+                    ->andReturn(null);
+
+                $webmastersService = Mockery::mock(WebmastersService::class);
+                $webmastersService->sitemaps = $sitemapsResource;
+
+                $reflection = new ReflectionClass($console);
+                $property = $reflection->getProperty('webmastersService');
+                $property->setValue($console, $webmastersService);
+
+                $console->deleteSitemap('https://example.com/', 'https://example.com/sitemap.xml');
+            });
+
+            it('throws exception when getSitemaps fails', function (): void {
+                $console = createGoogleConsole();
+
+                $sitemapsResource = Mockery::mock(WebmastersService\Resource\Sitemaps::class);
+                $sitemapsResource->shouldReceive('listSitemaps')
+                    ->andThrow(new GoogleServiceException('Forbidden', 403));
+
+                $webmastersService = Mockery::mock(WebmastersService::class);
+                $webmastersService->sitemaps = $sitemapsResource;
+
+                $reflection = new ReflectionClass($console);
+                $property = $reflection->getProperty('webmastersService');
+                $property->setValue($console, $webmastersService);
+
+                $console->getSitemaps('https://example.com/');
+            })->throws(GoogleConsoleFailure::class, 'Failed to list sitemaps for site');
+
+            it('throws exception when getSitemap fails', function (): void {
+                $console = createGoogleConsole();
+
+                $sitemapsResource = Mockery::mock(WebmastersService\Resource\Sitemaps::class);
+                $sitemapsResource->shouldReceive('get')
+                    ->with('https://example.com/', 'https://example.com/sitemap.xml')
+                    ->andThrow(new GoogleServiceException('Not found', 404));
+
+                $webmastersService = Mockery::mock(WebmastersService::class);
+                $webmastersService->sitemaps = $sitemapsResource;
+
+                $reflection = new ReflectionClass($console);
+                $property = $reflection->getProperty('webmastersService');
+                $property->setValue($console, $webmastersService);
+
+                $console->getSitemap('https://example.com/', 'https://example.com/sitemap.xml');
+            })->throws(GoogleConsoleFailure::class, 'Failed to get sitemap');
+
+            it('throws exception when submitSitemap fails', function (): void {
+                $console = createGoogleConsole();
+
+                $sitemapsResource = Mockery::mock(WebmastersService\Resource\Sitemaps::class);
+                $sitemapsResource->shouldReceive('submit')
+                    ->andThrow(new GoogleServiceException('Forbidden', 403));
+
+                $webmastersService = Mockery::mock(WebmastersService::class);
+                $webmastersService->sitemaps = $sitemapsResource;
+
+                $reflection = new ReflectionClass($console);
+                $property = $reflection->getProperty('webmastersService');
+                $property->setValue($console, $webmastersService);
+
+                $console->submitSitemap('https://example.com/', 'https://example.com/sitemap.xml');
+            })->throws(GoogleConsoleFailure::class, 'Failed to submit sitemap');
+
+            it('throws exception when deleteSitemap fails', function (): void {
+                $console = createGoogleConsole();
+
+                $sitemapsResource = Mockery::mock(WebmastersService\Resource\Sitemaps::class);
+                $sitemapsResource->shouldReceive('delete')
+                    ->andThrow(new GoogleServiceException('Not found', 404));
+
+                $webmastersService = Mockery::mock(WebmastersService::class);
+                $webmastersService->sitemaps = $sitemapsResource;
+
+                $reflection = new ReflectionClass($console);
+                $property = $reflection->getProperty('webmastersService');
+                $property->setValue($console, $webmastersService);
+
+                $console->deleteSitemap('https://example.com/', 'https://example.com/sitemap.xml');
+            })->throws(GoogleConsoleFailure::class, 'Failed to delete sitemap');
         });
 
         describe('search analytics', function (): void {

@@ -12,6 +12,7 @@ use Pekral\GoogleConsole\DTO\IndexingResult;
 use Pekral\GoogleConsole\DTO\IndexStatusCheckResult;
 use Pekral\GoogleConsole\DTO\InspectionContext;
 use Pekral\GoogleConsole\DTO\Site;
+use Pekral\GoogleConsole\DTO\Sitemap;
 use Pekral\GoogleConsole\DTO\UrlInspectionResult;
 use Pekral\GoogleConsole\Enum\IndexingNotificationType;
 use Pekral\GoogleConsole\Enum\OperatingMode;
@@ -119,6 +120,43 @@ interface ConsoleContract
      * @param string $siteUrl The site URL to retrieve
      */
     public function getSite(string $siteUrl): Site;
+
+    /**
+     * Lists sitemaps submitted for the site, optionally filtered by sitemap index URL.
+     *
+     * @param string $siteUrl The site URL
+     * @param string|null $sitemapIndex Optional sitemap index URL to filter by
+     * @return array<\Pekral\GoogleConsole\DTO\Sitemap>
+     * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure
+     */
+    public function getSitemaps(string $siteUrl, ?string $sitemapIndex = null): array;
+
+    /**
+     * Retrieves information about a specific sitemap.
+     *
+     * @param string $siteUrl The site URL that owns the sitemap
+     * @param string $feedpath The sitemap URL (e.g. https://example.com/sitemap.xml)
+     * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure
+     */
+    public function getSitemap(string $siteUrl, string $feedpath): Sitemap;
+
+    /**
+     * Submits a sitemap for the site. Requires webmasters scope (not just readonly).
+     *
+     * @param string $siteUrl The site URL that owns the sitemap
+     * @param string $feedpath The sitemap URL to submit
+     * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure
+     */
+    public function submitSitemap(string $siteUrl, string $feedpath): void;
+
+    /**
+     * Deletes a sitemap from the site. Requires webmasters scope (not just readonly).
+     *
+     * @param string $siteUrl The site URL that owns the sitemap
+     * @param string $feedpath The sitemap URL to delete
+     * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure
+     */
+    public function deleteSitemap(string $siteUrl, string $feedpath): void;
 
     /**
      * Requests indexing for a specific URL via Google Indexing API.

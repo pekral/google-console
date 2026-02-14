@@ -92,6 +92,42 @@ $site = $console->getSite('https://example.com/');
 // Returns: Site with siteUrl and permissionLevel
 ```
 
+### Sitemaps
+
+List, get, submit, or delete sitemaps for a site. Submit and delete require the full `webmasters` scope (the default client includes it).
+
+**List sitemaps** (optionally filtered by sitemap index URL):
+
+```php
+$sitemaps = $console->getSitemaps('https://example.com/');
+// With filter: $console->getSitemaps('https://example.com/', 'https://example.com/sitemap_index.xml');
+
+foreach ($sitemaps as $sitemap) {
+    echo $sitemap->path . ' | ' . $sitemap->type . ' | errors: ' . $sitemap->errors . "\n";
+}
+```
+
+**Get a single sitemap:**
+
+```php
+$sitemap = $console->getSitemap('https://example.com/', 'https://example.com/sitemap.xml');
+// Returns: Sitemap DTO (path, lastSubmitted, lastDownloaded, errors, warnings, isPending, isSitemapsIndex, type, contents)
+```
+
+**Submit a sitemap:**
+
+```php
+$console->submitSitemap('https://example.com/', 'https://example.com/sitemap.xml');
+```
+
+**Delete a sitemap:**
+
+```php
+$console->deleteSitemap('https://example.com/', 'https://example.com/sitemap.xml');
+```
+
+The `Sitemap` DTO has: `path`, `lastSubmitted`, `lastDownloaded` (nullable `DateTimeImmutable`), `errors`, `warnings`, `isPending`, `isSitemapsIndex`, `type`, and `contents` (array of `SitemapContentEntry` with `type` and `submitted` count).
+
 ### Search Analytics
 
 Retrieves search analytics data for a specific site within a date range.
