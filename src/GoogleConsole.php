@@ -179,12 +179,14 @@ final class GoogleConsole implements ConsoleContract
     ): UrlInspectionResult {
         $effectiveSiteUrl = $context !== null ? ($context->siteUrl ?? $siteUrl) : $siteUrl;
         $effectiveMode = $context !== null ? ($context->operatingMode ?? $operatingMode) : $operatingMode;
+        $languageCode = $context !== null ? ($context->languageCode ?? 'en') : 'en';
         $inspectionUrl = $this->normalizeUrlWith($inspectionUrl, $context);
         $this->rateLimiter?->consume(ApiFamily::URL_INSPECTION, $effectiveSiteUrl);
 
         $request = new InspectUrlIndexRequest();
         $request->setInspectionUrl($inspectionUrl);
         $request->setSiteUrl($effectiveSiteUrl);
+        $request->setLanguageCode($languageCode);
 
         try {
             $urlInspectionIndex = $this->getSearchConsoleService()->urlInspection_index;

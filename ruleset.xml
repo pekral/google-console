@@ -3,4 +3,8 @@
     <description>Custom PHPCS rules for Google Console package</description>
     <!-- Include pekral/phpcs-rules -->
     <rule ref="vendor/pekral/phpcs-rules/ruleset.xml"/>
+    <!-- Relax cognitive complexity in tests (Pest describe/it nesting raises complexity) -->
+    <rule ref="SlevomatCodingStandard.Complexity.Cognitive">
+        <exclude-pattern>*/tests/*</exclude-pattern>
+    </rule>
 </ruleset>
