@@ -395,7 +395,7 @@ final class GoogleConsole implements ConsoleContract
         }
 
         if ($attempt < $maxAttempts) {
-            $this->batchConfig->applyCooldown();
+            $this->batchConfig->applyCooldown($attempt);
         }
     }
 

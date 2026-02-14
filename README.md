@@ -181,7 +181,7 @@ For large URL sets, consider chunking or running in a background job to avoid ti
 
 Pass a `BatchConfig` to `GoogleConsole` to enable:
 - **Batch size limits** – reject batches that exceed a configurable maximum (hard failure)
-- **Cooldown with retries** – automatically wait and retry on temporary API errors (rate limit, timeout, server error)
+- **Cooldown with retries** – exponential backoff with jitter between retries on temporary API errors (rate limit, timeout, server error)
 - **Soft failure handling** – record unreachable URLs as `UNKNOWN` with a reason code instead of throwing
 
 ```php
@@ -190,7 +190,7 @@ use Pekral\GoogleConsole\GoogleConsole;
 
 $console = new GoogleConsole($client, batchConfig: new BatchConfig(
     maxBatchSize: 50,       // max URLs per batch (default: 100)
-    cooldownSeconds: 10,    // wait between retries (default: 5)
+    cooldownSeconds: 10,    // base delay for exponential backoff with jitter (default: 5)
     maxRetries: 3,          // retry attempts for soft failures (default: 2)
 ));
 
