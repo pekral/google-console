@@ -3212,26 +3212,27 @@
         },
         {
             "name": "pekral/rector-rules",
-            "version": "0.4.7",
+            "version": "0.4.8",
             "source": {
                 "type": "git",
                 "url": "https://github.com/pekral/rector-rules.git",
-                "reference": "769c9df65756ccc4741f7280e33bcb22065aa5be"
+                "reference": "fc5e0b00f58066f8dc3d2d9c98d7e33d128fe791"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/pekral/rector-rules/zipball/769c9df65756ccc4741f7280e33bcb22065aa5be",
-                "reference": "769c9df65756ccc4741f7280e33bcb22065aa5be",
+                "url": "https://api.github.com/repos/pekral/rector-rules/zipball/fc5e0b00f58066f8dc3d2d9c98d7e33d128fe791",
+                "reference": "fc5e0b00f58066f8dc3d2d9c98d7e33d128fe791",
                 "shasum": ""
             },
             "require": {
                 "php": "^8.4",
-                "rector/rector": "^2.3.4"
+                "rector/rector": "^2.3.6"
             },
             "require-dev": {
-                "pekral/cursor-rules": "dev-master",
-                "pekral/phpcs-rules": "dev-master",
-                "roave/security-advisories": "dev-latest"
+                "pekral/cursor-rules": "^0.4.1",
+                "pekral/phpcs-rules": "^0.4.6",
+                "pekral/phpstan-rules": "^0.4.5",
+                "roave/security-advisories": "dev-master"
             },
             "type": "library",
             "autoload": {
@@ -3272,7 +3273,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-01-25T14:21:46+00:00"
+            "time": "2026-02-14T18:24:50+00:00"
         },
         {
             "name": "pestphp/pest",
@@ -8044,5 +8045,5 @@
         "php": "^8.4"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.9.0"
+    "plugin-api-version": "2.6.0"
 }
