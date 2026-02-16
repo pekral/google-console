@@ -3132,33 +3132,34 @@
         },
         {
             "name": "pekral/phpcs-rules",
-            "version": "0.4.6",
+            "version": "0.4.7",
             "source": {
                 "type": "git",
                 "url": "https://github.com/pekral/phpcs-rules.git",
-                "reference": "5732de34aff1c71d6cfede611c15b60e5c41c494"
+                "reference": "b2f582906ea7d7bb90a4035402b5b9b5c11905b0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/pekral/phpcs-rules/zipball/5732de34aff1c71d6cfede611c15b60e5c41c494",
-                "reference": "5732de34aff1c71d6cfede611c15b60e5c41c494",
+                "url": "https://api.github.com/repos/pekral/phpcs-rules/zipball/b2f582906ea7d7bb90a4035402b5b9b5c11905b0",
+                "reference": "b2f582906ea7d7bb90a4035402b5b9b5c11905b0",
                 "shasum": ""
             },
             "require": {
-                "php": "^8.4|^8.5",
+                "dealerdirect/phpcodesniffer-composer-installer": "^1.2",
+                "php": "^8.4",
                 "slevomat/coding-standard": "^8.27.1"
             },
             "require-dev": {
-                "illuminate/collections": "^12.49.0",
+                "illuminate/collections": "^12.51.0",
                 "mockery/mockery": "^1.6.12",
-                "pekral/cursor-rules": "^0.3",
+                "pekral/cursor-rules": "^0.4.1",
                 "pekral/phpstan-rules": "^0.4.5",
-                "pekral/rector-rules": "^0.4.7",
-                "phpunit/phpunit": "^12.5.8",
+                "pekral/rector-rules": "^0.4.8",
+                "phpunit/phpunit": "^13.0.2",
                 "roave/security-advisories": "dev-latest",
                 "symfony/console": "^7.4.1 || ^8.0.4"
             },
-            "type": "library",
+            "type": "phpcodesniffer-standard",
             "autoload": {
                 "psr-4": {
                     "Pekral\\PhpcsRulesBuild\\": "src/"
@@ -3208,7 +3209,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-02-02T15:42:10+00:00"
+            "time": "2026-02-14T18:53:09+00:00"
         },
         {
             "name": "pekral/rector-rules",
