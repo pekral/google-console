@@ -150,8 +150,8 @@ final class GoogleConsole implements ConsoleContract
      * @param int $rowLimit Maximum number of rows to return (max 25000)
      * @param int $startRow Starting row offset for pagination
      * @return array<\Pekral\GoogleConsole\DTO\SearchAnalyticsRow> Search performance data grouped by dimensions
-     * @throws \Pekral\GoogleConsole\Exception\QuotaExceededException When Search Analytics quota (QPM per site) is exceeded
      * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure When invalid dimensions are provided or API fails
+     * @throws \Pekral\GoogleConsole\Exception\QuotaExceededException When Search Analytics quota (QPM per site) is exceeded
      */
     public function getSearchAnalytics(
         string $siteUrl,
@@ -191,8 +191,8 @@ final class GoogleConsole implements ConsoleContract
      * @param \Pekral\GoogleConsole\Enum\OperatingMode|null $operatingMode strict (default) or best-effort
      * @param \Pekral\GoogleConsole\DTO\InspectionContext|null $context optional request context (site, normalizer, mode)
      * @return \Pekral\GoogleConsole\DTO\UrlInspectionResult Detailed inspection result with indexing and mobile status
-     * @throws \Pekral\GoogleConsole\Exception\QuotaExceededException When URL Inspection quota (QPD/QPM per site) is exceeded
      * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure When the inspection request fails
+     * @throws \Pekral\GoogleConsole\Exception\QuotaExceededException When URL Inspection quota (QPD/QPM per site) is exceeded
      */
     public function inspectUrl(
         string $siteUrl,
@@ -326,8 +326,8 @@ final class GoogleConsole implements ConsoleContract
      *
      * @param string $siteUrl The site URL to retrieve
      * @return \Pekral\GoogleConsole\DTO\Site Site information including URL and permission level
-     * @throws \Pekral\GoogleConsole\Exception\QuotaExceededException When rate limit (Other resources) is exceeded
      * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure When the site is not found or access is denied
+     * @throws \Pekral\GoogleConsole\Exception\QuotaExceededException When rate limit (Other resources) is exceeded
      */
     public function getSite(string $siteUrl): Site
     {
@@ -356,8 +356,8 @@ final class GoogleConsole implements ConsoleContract
      * @param string $siteUrl The site URL (e.g. https://example.com/ or sc-domain:example.com)
      * @param string|null $sitemapIndex Optional URL of a sitemap index to filter by
      * @return list<\Pekral\GoogleConsole\DTO\Sitemap>
-     * @throws \Pekral\GoogleConsole\Exception\QuotaExceededException When rate limit (Other) is exceeded
      * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure When the API request fails
+     * @throws \Pekral\GoogleConsole\Exception\QuotaExceededException When rate limit (Other) is exceeded
      */
     public function getSitemaps(string $siteUrl, ?string $sitemapIndex = null): array
     {
@@ -388,8 +388,8 @@ final class GoogleConsole implements ConsoleContract
      *
      * @param string $siteUrl The site URL that owns the sitemap
      * @param string $feedpath The URL of the sitemap (e.g. https://example.com/sitemap.xml)
-     * @throws \Pekral\GoogleConsole\Exception\QuotaExceededException When rate limit (Other) is exceeded
      * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure When the sitemap is not found or API fails
+     * @throws \Pekral\GoogleConsole\Exception\QuotaExceededException When rate limit (Other) is exceeded
      */
     public function getSitemap(string $siteUrl, string $feedpath): Sitemap
     {
@@ -417,8 +417,8 @@ final class GoogleConsole implements ConsoleContract
      *
      * @param string $siteUrl The site URL that owns the sitemap
      * @param string $feedpath The URL of the sitemap to submit (e.g. https://example.com/sitemap.xml)
-     * @throws \Pekral\GoogleConsole\Exception\QuotaExceededException When rate limit (Other) is exceeded
      * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure When the API request fails (e.g. 403 if scope is readonly)
+     * @throws \Pekral\GoogleConsole\Exception\QuotaExceededException When rate limit (Other) is exceeded
      */
     public function submitSitemap(string $siteUrl, string $feedpath): void
     {
@@ -443,8 +443,8 @@ final class GoogleConsole implements ConsoleContract
      *
      * @param string $siteUrl The site URL that owns the sitemap
      * @param string $feedpath The URL of the sitemap to delete
-     * @throws \Pekral\GoogleConsole\Exception\QuotaExceededException When rate limit (Other) is exceeded
      * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure When the API request fails
+     * @throws \Pekral\GoogleConsole\Exception\QuotaExceededException When rate limit (Other) is exceeded
      */
     public function deleteSitemap(string $siteUrl, string $feedpath): void
     {
@@ -470,8 +470,8 @@ final class GoogleConsole implements ConsoleContract
      * @param string $url The full URL to request indexing for
      * @param \Pekral\GoogleConsole\Enum\IndexingNotificationType $type The type of notification
      * @return \Pekral\GoogleConsole\DTO\IndexingResult Result containing the URL and notification time
-     * @throws \Pekral\GoogleConsole\Exception\QuotaExceededException When Indexing API quota (QPD/QPM per project) is exceeded
      * @throws \Pekral\GoogleConsole\Exception\GoogleConsoleFailure When the indexing request fails
+     * @throws \Pekral\GoogleConsole\Exception\QuotaExceededException When Indexing API quota (QPD/QPM per project) is exceeded
      */
     public function requestIndexing(string $url, IndexingNotificationType $type = IndexingNotificationType::URL_UPDATED): IndexingResult
     {
